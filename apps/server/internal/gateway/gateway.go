@@ -43,8 +43,13 @@ func (g *Gateway) Handle(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	p, welcome := g.z.Join(ident.DevUser)
-	g.log.Info("player joined", "name", ident.DevUser, "id", p.ID)
+	// Use email as the display name for now; AccountID is the durable key.
+	displayName := ident.Email
+	if displayName == "" {
+		displayName = ident.AccountID
+	}
+	p, welcome := g.z.Join(displayName)
+	g.log.Info("player joined", "account_id", ident.AccountID, "email", ident.Email, "id", p.ID)
 	defer func() {
 		g.z.Leave(p.ID)
 		g.log.Info("player left", "id", p.ID)

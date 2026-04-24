@@ -3,7 +3,6 @@
 package zone
 
 import (
-	"context"
 	"log/slog"
 	"sync"
 	"sync/atomic"
