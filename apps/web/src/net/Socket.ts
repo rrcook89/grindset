@@ -4,12 +4,35 @@ import {
   decodeWelcome,
   decodePositionDelta,
   decodeError,
+  decodeCombatUpdate,
+  decodeHitSplat,
+  decodeSkillUpdate,
+  decodeInventoryDelta,
+  decodeChatMessage,
+  decodeWalletBalance,
+  decodeWalletLedgerEntry,
   readOpcode,
 } from "./protocol";
 import { useGameStore } from "../state/store";
+import type { InventoryItem, ChatChannel, Skill } from "./types";
 
 const RECONNECT_DELAY_MS = 2000;
 const MAX_RECONNECT_ATTEMPTS = 10;
+
+const SKILL_NAMES = [
+  "Mining",
+  "Fishing",
+  "Woodcutting",
+  "Melee",
+  "Ranged",
+  "Magic",
+  "Cooking",
+  "Smithing",
+  "Alchemy",
+  "Cartography",
+] as const;
+
+const CHAT_CHANNELS: ChatChannel[] = ["global", "zone", "guild", "trade"];
 
 export class GameSocket {
   private ws: WebSocket | null = null;
@@ -24,7 +47,11 @@ export class GameSocket {
   }
 
   connect(): void {
-    const url = `${this.wsUrl}?dev_user=${encodeURIComponent(this.devUser)}`;
+    const jwt = useGameStore.getState().jwt;
+    const authParam = jwt
+      ? `token=${encodeURIComponent(jwt)}`
+      : `dev_user=${encodeURIComponent(this.devUser)}`;
+    const url = `${this.wsUrl}?${authParam}`;
     useGameStore.getState().setConnectionStatus("connecting");
 
     const ws = new WebSocket(url);
@@ -57,25 +84,123 @@ export class GameSocket {
 
     switch (opcode) {
       case OP.WELCOME: {
-        const payload = decodeWelcome(buf);
+        const p = decodeWelcome(buf);
         store.setConnectionStatus("connected");
-        store.setLocalPlayer({
-          id: payload.playerId,
-          x: payload.spawnX,
-          y: payload.spawnY,
+        store.setLocalPlayer({ id: p.playerId, x: p.spawnX, y: p.spawnY });
+        break;
+      }
+
+      case OP.POSITION_DELTA: {
+        const p = decodePositionDelta(buf);
+        store.applyPositionDelta(p.entities);
+        break;
+      }
+
+      case OP.COMBAT_UPDATE: {
+        const p = decodeCombatUpdate(buf);
+        store.setCombatTarget({ entityId: p.entityId, name: p.name, hp: p.hp, maxHp: p.maxHp });
+        break;
+      }
+
+      case OP.HIT_SPLAT: {
+        const p = decodeHitSplat(buf);
+        store.applyHitSplat({
+          id: `${Date.now()}-${Math.random()}`,
+          entityId: p.entityId,
+          amount: p.amount,
+          type: p.hitType === 1 ? "heal" : "damage",
+          timestamp: Date.now(),
         });
         break;
       }
-      case OP.POSITION_DELTA: {
-        const payload = decodePositionDelta(buf);
-        store.applyPositionDelta(payload.entities);
+
+      case OP.COMBAT_END: {
+        store.setCombatTarget(null);
         break;
       }
+
+      case OP.SKILL_UPDATE: {
+        const p = decodeSkillUpdate(buf);
+        const name = SKILL_NAMES[p.skillId];
+        if (name) {
+          const skill: Skill = { name, level: p.level, xp: p.xp, xpToNextLevel: p.xpToNextLevel };
+          store.applySkillUpdate(skill);
+        }
+        break;
+      }
+
+      case OP.SKILL_LEVEL_UP: {
+        const p = decodeSkillUpdate(buf);
+        const name = SKILL_NAMES[p.skillId];
+        if (name) {
+          const skill: Skill = { name, level: p.level, xp: p.xp, xpToNextLevel: p.xpToNextLevel };
+          store.applySkillUpdate(skill);
+          store.setLevelUpFlash(name);
+          setTimeout(() => store.setLevelUpFlash(null), 3000);
+        }
+        break;
+      }
+
+      case OP.INVENTORY_DELTA: {
+        const p = decodeInventoryDelta(buf);
+        const items: InventoryItem[] = p.items.map((raw) => ({
+          slotIndex: raw.slotIndex,
+          itemId: raw.itemId,
+          name: raw.name,
+          quantity: raw.quantity,
+          color: `#${raw.color.toString(16).padStart(6, "0")}`,
+        }));
+        store.setInventory(items);
+        break;
+      }
+
+      case OP.BANK_OPEN: {
+        store.setBankOpen(true);
+        break;
+      }
+
+      case OP.BANK_CLOSE: {
+        store.setBankOpen(false);
+        break;
+      }
+
+      case OP.CHAT_MESSAGE: {
+        const p = decodeChatMessage(buf);
+        const channel: ChatChannel = CHAT_CHANNELS[p.channel] ?? "global";
+        store.addChatMessage({
+          id: `${Date.now()}-${Math.random()}`,
+          channel,
+          senderName: p.senderName,
+          text: p.text,
+          timestamp: Date.now(),
+        });
+        break;
+      }
+
+      case OP.WALLET_BALANCE: {
+        const p = decodeWalletBalance(buf);
+        store.setWalletBalance(p.balance);
+        break;
+      }
+
+      case OP.WALLET_LEDGER_ENTRY: {
+        const p = decodeWalletLedgerEntry(buf);
+        store.addLedgerEntry({
+          id: String(p.entryId),
+          direction: p.direction === 0 ? "in" : "out",
+          amount: p.amount,
+          description: p.description,
+          timestamp: p.timestamp,
+        });
+        break;
+      }
+
       case OP.ERROR: {
-        const payload = decodeError(buf);
-        console.error(`[GRINDSET] Server error ${payload.code}: ${payload.message}`);
+        const p = decodeError(buf);
+        console.error(`[GRINDSET] Server error ${p.code}: ${p.message}`);
         break;
       }
+
       default:
         break;
     }

@@ -1,0 +1,5 @@
+-- 011: Quest seed — quests are file-defined (YAML); no DB table needed.
+-- This migration is intentionally empty. YAML files in
+-- apps/server/internal/quest/defs/ are the source of truth.
+-- A quest_definitions table may be added later for live editing
+-- without requiring a redeploy.

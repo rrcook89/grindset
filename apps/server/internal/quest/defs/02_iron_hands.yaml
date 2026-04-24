@@ -1,0 +1,27 @@
+id: iron_hands
+title: "Iron Hands"
+description: |
+  Old Torvan the smith says the town forge is cold — he needs iron ore to get
+  it going again. Head to the Mireholm quarry and mine some for him.
+rewards:
+  xp: 120
+  items:
+    - item_id: iron_pickaxe
+      quantity: 1
+steps:
+  - id: talk_torvan
+    description: "Speak to Torvan at the smithy."
+    trigger:
+      type: talked_to_npc
+      npc_id: torvan_smith
+  - id: mine_ore
+    description: "Mine 5 iron ore from the quarry."
+    trigger:
+      type: item_obtained
+      item_id: iron_ore
+      quantity: 5
+  - id: deliver_ore
+    description: "Bring the ore back to Torvan."
+    trigger:
+      type: talked_to_npc
+      npc_id: torvan_smith

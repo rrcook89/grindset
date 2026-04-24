@@ -1,0 +1,46 @@
+id: lost_ledger
+title: "The Lost Ledger"
+description: |
+  A Ledger faction merchant claims someone stole a cipher-locked journal from
+  his strongbox. The thief left behind three clues hidden around Mireholm.
+  Find them, decode the combination, and retrieve the ledger.
+rewards:
+  xp: 300
+  items:
+    - item_id: ledger_faction_token
+      quantity: 1
+steps:
+  - id: talk_merchant
+    description: "Speak to Merchant Osrin about the theft."
+    trigger:
+      type: talked_to_npc
+      npc_id: osrin_merchant
+  - id: clue_docks
+    description: "Find the first clue scratched into a dock piling."
+    trigger:
+      type: location_reached
+      zone_id: mireholm
+      x: 24
+      y: 19
+      radius: 1
+  - id: clue_inn
+    description: "Find the second clue hidden behind the inn fireplace."
+    trigger:
+      type: location_reached
+      zone_id: mireholm
+      x: 6
+      y: 5
+      radius: 1
+  - id: clue_quarry
+    description: "Find the third clue carved into the quarry wall."
+    trigger:
+      type: location_reached
+      zone_id: mireholm
+      x: 30
+      y: 4
+      radius: 1
+  - id: return_ledger
+    description: "Return the decoded cipher to Osrin."
+    trigger:
+      type: talked_to_npc
+      npc_id: osrin_merchant

@@ -1,0 +1,44 @@
+id: mires_call
+title: "The Mire's Call"
+description: |
+  Strange lights have been seen deep in the bog north of Mireholm. A Deepcrew
+  scout named Vex believes it's a submerged ruin worth investigating. Help her
+  reach level 5 combat, then push into the bog together.
+rewards:
+  xp: 500
+  items:
+    - item_id: deepcrew_faction_token
+      quantity: 1
+    - item_id: bog_lantern
+      quantity: 1
+steps:
+  - id: talk_vex
+    description: "Find scout Vex at the north gate."
+    trigger:
+      type: talked_to_npc
+      npc_id: vex_scout
+  - id: reach_combat_5
+    description: "Reach combat level 5 to prove yourself."
+    trigger:
+      type: skill_level_reached
+      skill: combat_melee
+      level: 5
+  - id: enter_bog
+    description: "Follow Vex into the northern bog."
+    trigger:
+      type: location_reached
+      zone_id: mireholm_bog
+      x: 5
+      y: 5
+      radius: 3
+  - id: kill_bog_horror
+    description: "Defeat the Bog Horror lurking in the ruins."
+    trigger:
+      type: mob_killed
+      mob_id: bog_horror
+      quantity: 1
+  - id: report_vex
+    description: "Report the ruin's location back to Vex."
+    trigger:
+      type: talked_to_npc
+      npc_id: vex_scout

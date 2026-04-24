@@ -1,0 +1,27 @@
+id: rust_and_ruin
+title: "Rust and Ruin"
+description: |
+  Mireholm's eastern docks are overrun with bog-rats. The harbour master Yelna
+  wants them culled before the supply barges arrive.
+rewards:
+  xp: 200
+  items:
+    - item_id: bronze_sword
+      quantity: 1
+steps:
+  - id: talk_yelna
+    description: "Talk to Harbour Master Yelna."
+    trigger:
+      type: talked_to_npc
+      npc_id: yelna_harbourmaster
+  - id: kill_rats
+    description: "Slay 10 bog-rats near the eastern docks."
+    trigger:
+      type: mob_killed
+      mob_id: bog_rat
+      quantity: 10
+  - id: report_back
+    description: "Report to Yelna that the docks are clear."
+    trigger:
+      type: talked_to_npc
+      npc_id: yelna_harbourmaster

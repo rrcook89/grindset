@@ -1,0 +1,37 @@
+id: mireholm_welcome
+title: "A Stranger in Mireholm"
+description: |
+  You've just arrived in the swamp-port of Mireholm. The innkeeper Griselda
+  wants to make sure you know your way around before the tides change.
+rewards:
+  xp: 50
+  items:
+    - item_id: bread_loaf
+      quantity: 3
+steps:
+  - id: talk_griselda
+    description: "Talk to Griselda at the Rusted Anchor inn."
+    trigger:
+      type: talked_to_npc
+      npc_id: griselda_innkeeper
+  - id: visit_bank
+    description: "Find the Mireholm bank."
+    trigger:
+      type: location_reached
+      zone_id: mireholm
+      x: 12
+      y: 8
+      radius: 2
+  - id: visit_ge
+    description: "Visit the Grand Bazaar stalls."
+    trigger:
+      type: location_reached
+      zone_id: mireholm
+      x: 18
+      y: 14
+      radius: 2
+  - id: return_to_griselda
+    description: "Report back to Griselda."
+    trigger:
+      type: talked_to_npc
+      npc_id: griselda_innkeeper
