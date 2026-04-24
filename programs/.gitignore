@@ -1,0 +1,13 @@
+target/
+.anchor/
+test-ledger/
+dist/
+node_modules/
+
+# Anchor build artifacts we keep: deploy/*.json (program IDs), but never the
+# authority keypairs generated locally.
+target/deploy/*-keypair.json
+!target/deploy/.gitkeep
+
+*.keypair
+id.json

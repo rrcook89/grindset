@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS bank_slots;
+DROP TABLE IF EXISTS items;
+DROP TABLE IF EXISTS item_definitions;

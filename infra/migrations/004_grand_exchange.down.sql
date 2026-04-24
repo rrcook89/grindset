@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS ge_fills;
+DROP TABLE IF EXISTS ge_orders;

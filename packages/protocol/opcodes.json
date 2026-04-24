@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "frame_header": {
+    "fields": [
+      { "name": "opcode", "type": "u8" },
+      { "name": "flags",  "type": "u8" },
+      { "name": "length", "type": "u16" }
+    ],
+    "byte_order": "little-endian",
+    "size_bytes": 4
+  },
+  "opcodes": [
+    {
+      "hex": "0x00",
+      "name": "Hello",
+      "direction": "C2S",
+      "payload": [{ "name": "dev_user", "type": "utf8_rest" }]
+    },
+    {
+      "hex": "0x01",
+      "name": "Welcome",
+      "direction": "S2C",
+      "payload": [
+        { "name": "player_id", "type": "u32" },
+        { "name": "spawn_x",   "type": "u16" },
+        { "name": "spawn_y",   "type": "u16" },
+        { "name": "zone_w",    "type": "u16" },
+        { "name": "zone_h",    "type": "u16" }
+      ]
+    },
+    {
+      "hex": "0x10",
+      "name": "MoveIntent",
+      "direction": "C2S",
+      "payload": [
+        { "name": "target_x", "type": "u16" },
+        { "name": "target_y", "type": "u16" }
+      ]
+    },
+    {
+      "hex": "0x11",
+      "name": "PositionDelta",
+      "direction": "S2C",
+      "payload": [
+        { "name": "count", "type": "u16" },
+        {
+          "name": "entries",
+          "type": "array",
+          "length_from": "count",
+          "item": [
+            { "name": "entity_id", "type": "u32" },
+            { "name": "x",         "type": "u16" },
+            { "name": "y",         "type": "u16" }
+          ]
+        }
+      ]
+    },
+    {
+      "hex": "0xF0",
+      "name": "Error",
+      "direction": "S2C",
+      "payload": [
+        { "name": "code",    "type": "u16" },
+        { "name": "message", "type": "utf8_rest" }
+      ]
+    }
+  ],
+  "opcode_ranges": {
+    "0x00-0x0F": "auth/session",
+    "0x10-0x2F": "movement",
+    "0x30-0x4F": "combat",
+    "0x50-0x6F": "skilling/interaction",
+    "0x70-0x8F": "inventory/trade",
+    "0x90-0x9F": "chat",
+    "0xA0-0xAF": "wallet/economy",
+    "0xF0-0xFF": "system/error"
+  }
+}

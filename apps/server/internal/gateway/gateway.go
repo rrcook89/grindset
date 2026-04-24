@@ -1,0 +1,126 @@
+// Package gateway handles WebSocket upgrade and per-connection lifecycle.
+// Inbound: decode frame → route (currently only MoveIntent for Sprint 1) → queue to zone.
+// Outbound: pull from player Outbox → write to socket.
+package gateway
+
+import (
+	"context"
+	"log/slog"
+	"net/http"
+	"time"
+
+	"github.com/coder/websocket"
+	"github.com/grindset/server/internal/auth"
+	"github.com/grindset/server/internal/protocol"
+	"github.com/grindset/server/internal/zone"
+)
+
+type Gateway struct {
+	log *slog.Logger
+	z   *zone.Zone
+}
+
+func New(log *slog.Logger, z *zone.Zone) *Gateway {
+	return &Gateway{log: log, z: z}
+}
+
+func (g *Gateway) Handle(w http.ResponseWriter, r *http.Request) {
+	ident, err := auth.FromRequest(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	c, err := websocket.Accept(w, r, &websocket.AcceptOptions{
+		// Sprint 1: permissive; tighten before mainnet (CSRF, origin allowlist).
+		InsecureSkipVerify: true,
+	})
+	if err != nil {
+		g.log.Error("ws accept failed", "err", err)
+		return
+	}
+	defer c.CloseNow()
+
+	ctx := r.Context()
+
+	p, welcome := g.z.Join(ident.DevUser)
+	g.log.Info("player joined", "name", ident.DevUser, "id", p.ID)
+	defer func() {
+		g.z.Leave(p.ID)
+		g.log.Info("player left", "id", p.ID)
+	}()
+
+	// Send Welcome first.
+	if err := c.Write(ctx, websocket.MessageBinary, protocol.EncodeWelcome(welcome)); err != nil {
+		g.log.Warn("ws write welcome failed", "err", err)
+		return
+	}
+
+	readErr := make(chan error, 1)
+	go func() { readErr <- g.readLoop(ctx, c, p) }()
+
+	writeErr := make(chan error, 1)
+	go func() { writeErr <- g.writeLoop(ctx, c, p) }()
+
+	select {
+	case err := <-readErr:
+		if err != nil {
+			g.log.Debug("read loop ended", "err", err)
+		}
+	case err := <-writeErr:
+		if err != nil {
+			g.log.Debug("write loop ended", "err", err)
+		}
+	case <-ctx.Done():
+	}
+}
+
+func (g *Gateway) readLoop(ctx context.Context, c *websocket.Conn, p *zone.Player) error {
+	for {
+		ctxT, cancel := context.WithTimeout(ctx, 60*time.Second)
+		typ, buf, err := c.Read(ctxT)
+		cancel()
+		if err != nil {
+			return err
+		}
+		if typ != websocket.MessageBinary {
+			continue
+		}
+		frame, err := protocol.Decode(buf)
+		if err != nil {
+			g.log.Debug("bad frame", "err", err, "pid", p.ID)
+			continue
+		}
+		switch frame.Op {
+		case protocol.OpMoveIntent:
+			m, err := protocol.DecodeMoveIntent(frame.Payload)
+			if err != nil {
+				continue
+			}
+			g.z.QueueMove(p.ID, m.X, m.Y)
+		case protocol.OpHello:
+			// ignore: we already authenticated via query param
+		default:
+			// unknown opcode: silently ignore for now
+		}
+	}
+}
+
+func (g *Gateway) writeLoop(ctx context.Context, c *websocket.Conn, p *zone.Player) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case msg, ok := <-p.Outbox:
+			if !ok {
+				return nil
+			}
+			ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
+			err := c.Write(ctxT, websocket.MessageBinary, msg)
+			cancel()
+			if err != nil {
+				return err
+			}
+		}
+	}
+}

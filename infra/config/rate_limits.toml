@@ -1,0 +1,23 @@
+# Rate limits for GRINDSET — tunable without redeploy.
+# All limits are enforced in Redis via sliding-window counters.
+
+# Failed login attempts per IP address
+[login]
+attempts_per_hour_per_ip = 10
+
+# New account registrations per IP address
+[registration]
+accounts_per_day_per_ip = 3
+
+# Grand Exchange order placement per account
+[grand_exchange]
+orders_per_minute_per_account = 30
+
+# Chat messages per channel (not per account — shared bucket per channel)
+[chat]
+messages_per_minute_per_channel = 10
+
+# On-chain $GRIND withdrawals per account
+[withdraw]
+per_hour_per_account     = 1
+max_fraction_of_balance  = 0.25   # ≤ 25% of current balance per withdrawal

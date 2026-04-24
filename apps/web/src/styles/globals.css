@@ -1,0 +1,34 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-obsidian: #0b0f14;
+  --color-ingot-gold: #f5c14b;
+  --color-gain-green: #3bd67a;
+  --color-loss-red: #e04545;
+  --color-arcane-violet: #7b5be8;
+  --color-parchment-grey: #c9ced6;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--color-obsidian);
+  color: var(--color-parchment-grey);
+  font-family: "Inter", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button {
+  all: unset;
+  cursor: pointer;
+}
