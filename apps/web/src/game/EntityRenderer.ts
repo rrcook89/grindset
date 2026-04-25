@@ -432,6 +432,17 @@ export class EntityRenderer {
       drawMarshRat(g, cx, feetY);
     }
 
+    // Aggro marker — yellow "!" badge above hostile mobs (goblin tier
+    // and up). Rats are passive and get no badge.
+    if (maxHp >= 15) {
+      const bx = cx + 14;
+      const by = feetY - 60;
+      g.poly([bx, by - 8, bx + 4, by + 4, bx - 4, by + 4]).fill({ color: 0xffd040 });
+      g.poly([bx, by - 8, bx + 4, by + 4, bx - 4, by + 4]).stroke({ color: 0x4a2a00, width: 1 });
+      g.rect(bx - 0.7, by - 5, 1.4, 5).fill({ color: 0x4a2a00 });
+      g.circle(bx, by + 2, 0.8).fill({ color: 0x4a2a00 });
+    }
+
     this.applyLabel(entry, mobNameForMaxHp(maxHp), 0xe8b0a0);
     this.drawHpBar(entry.hpBar, hp, maxHp);
   }
