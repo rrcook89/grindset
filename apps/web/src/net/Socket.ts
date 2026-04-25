@@ -217,6 +217,7 @@ export class GameSocket {
         const lpDeath = useGameStore.getState().localPlayer;
         if (lpDeath && p.killerId === lpDeath.id && p.entityId !== lpDeath.id) {
           store.incQuestObjective("welcome_to_mireholm", 1, 1);
+          store.recordKill();
           sfx.kill();
         }
         if (lpDeath && p.entityId === lpDeath.id) {

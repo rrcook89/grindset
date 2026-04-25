@@ -173,6 +173,11 @@ interface GameState {
   // Last swing animation event — purely visual.
   lastSwing: { attackerId: number; targetId: number; born: number } | null;
 
+  // Session metrics (client-only stats, reset per-tab).
+  sessionStart: number;
+  totalKills: number;
+  totalGrindEarned: bigint;
+
   // Auth
   jwt: string | null;
 
@@ -196,6 +201,7 @@ interface GameState {
 
   setSkillTarget: (id: number | null) => void;
   triggerSwing: (attackerId: number, targetId: number) => void;
+  recordKill: () => void;
 
   // Skills
   applySkillUpdate: (skill: Skill) => void;
@@ -253,6 +259,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   floats: [],
   skillTargetId: null,
   lastSwing: null,
+  sessionStart: Date.now(),
+  totalKills: 0,
+  totalGrindEarned: 0n,
 
   skills: defaultSkills(),
   levelUpFlash: null,
@@ -398,6 +407,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   triggerSwing: (attackerId, targetId) =>
     set({ lastSwing: { attackerId, targetId, born: Date.now() } }),
 
+  recordKill: () => set((s) => ({ totalKills: s.totalKills + 1 })),
+
   // ── Skills ──────────────────────────────────────────────────────────────────
 
   applySkillUpdate: (skill) => {
@@ -470,6 +481,11 @@ export const useGameStore = create<GameState>((set, get) => ({
         ...s.wallet,
         ledger: [entry, ...s.wallet.ledger].slice(0, 50),
       },
+      // Track inbound flow only (skip withdrawals/spends).
+      totalGrindEarned:
+        entry.direction === "in"
+          ? s.totalGrindEarned + entry.amount
+          : s.totalGrindEarned,
     })),
 
   // ── Quests ──────────────────────────────────────────────────────────────────

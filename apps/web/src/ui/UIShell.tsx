@@ -3,6 +3,7 @@ import { ChatDock } from "./ChatDock";
 import { Hotbar } from "./Hotbar";
 import { WalletHud } from "./WalletHud";
 import { SkillPanel } from "./SkillPanel";
+import { StatsPanel } from "./StatsPanel";
 import { Inventory } from "./Inventory";
 import { CombatHud } from "./CombatHud";
 import { PlayerHud } from "./PlayerHud";
@@ -21,7 +22,7 @@ const STATUS_COLOR: Record<string, string> = {
   error: "bg-loss-red",
 };
 
-type RightPanel = "inventory" | "skills" | "quests" | null;
+type RightPanel = "inventory" | "skills" | "quests" | "stats" | null;
 
 export function UIShell() {
   const status = useGameStore((s) => s.connectionStatus);
@@ -78,7 +79,7 @@ export function UIShell() {
           <div className="pointer-events-auto flex flex-col gap-2">
             {/* Tab buttons */}
             <div className="flex flex-col gap-1 rounded border border-ingot-gold/20 bg-obsidian/80 p-1 backdrop-blur-sm">
-              {(["inventory", "skills", "quests"] as RightPanel[]).map((p) => (
+              {(["inventory", "skills", "quests", "stats"] as RightPanel[]).map((p) => (
                 <button
                   key={p}
                   className={[
@@ -98,6 +99,7 @@ export function UIShell() {
             {rightPanel === "inventory" && <Inventory />}
             {rightPanel === "skills" && <SkillPanel />}
             {rightPanel === "quests" && <QuestLog />}
+            {rightPanel === "stats" && <StatsPanel />}
           </div>
         </div>
 
