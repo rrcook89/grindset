@@ -17,6 +17,7 @@ import {
 import { useGameStore } from "../state/store";
 import type { InventoryItem, ChatChannel, Skill } from "./types";
 import { itemDisplay } from "./itemDefs";
+import { sfx } from "../game/Sfx";
 
 const RECONNECT_DELAY_MS = 2000;
 const MAX_RECONNECT_ATTEMPTS = 10;
@@ -181,6 +182,11 @@ export class GameSocket {
               ? { localPlayer: { ...s.localPlayer, hp: p.targetHp, maxHp: p.targetMaxHp } }
               : s,
           );
+          if (p.attackerId === lp.id) {
+            // Self-targeted heal (Bandage) — no hurt sound.
+          } else if (p.damage > 0) {
+            sfx.hurt();
+          }
         } else if (lp && p.attackerId === lp.id) {
           // Local player just hit a mob — show/refresh the target frame.
           store.setCombatTarget({
@@ -192,6 +198,9 @@ export class GameSocket {
           // Quest: count crits for "Swing School".
           if (p.damage > 0 && p.damage > p.maxHit) {
             store.incQuestObjective("swing_school", 0, 1);
+            sfx.crit();
+          } else if (p.damage > 0) {
+            sfx.hit();
           }
         }
         break;
@@ -208,6 +217,10 @@ export class GameSocket {
         const lpDeath = useGameStore.getState().localPlayer;
         if (lpDeath && p.killerId === lpDeath.id && p.entityId !== lpDeath.id) {
           store.incQuestObjective("welcome_to_mireholm", 1, 1);
+          sfx.kill();
+        }
+        if (lpDeath && p.entityId === lpDeath.id) {
+          sfx.death();
         }
         // Mob will disappear from the next PositionDelta — no extra action.
         break;
@@ -226,6 +239,8 @@ export class GameSocket {
           };
           store.applySkillUpdate(skill);
         }
+        if (p.xpGained > 0) sfx.skillTick();
+        if (p.itemDefId) sfx.loot();
         // Float visuals over the local player when something was awarded.
         const lp = useGameStore.getState().localPlayer;
         if (lp) {
@@ -277,6 +292,7 @@ export class GameSocket {
         if (name) {
           store.setLevelUpFlash(name);
           setTimeout(() => store.setLevelUpFlash(null), 3000);
+          sfx.levelUp();
           // Big celebratory float over the player.
           const lp = useGameStore.getState().localPlayer;
           if (lp) {

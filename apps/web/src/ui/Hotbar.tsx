@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useGameStore } from "../state/store";
 import { getActiveSocket } from "../net/Socket";
 import { encodeAbilityUse } from "../net/protocol";
+import { sfx } from "../game/Sfx";
 
 const ABILITY_SLOTS = 5;
 
@@ -56,6 +57,7 @@ export function Hotbar() {
       triggerCooldown(slotIndex);
       const socket = getActiveSocket();
       socket?.sendRaw(encodeAbilityUse(slotIndex));
+      sfx.ability();
     },
     [abilities, triggerCooldown],
   );

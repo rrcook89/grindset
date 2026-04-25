@@ -7,6 +7,7 @@ import { TargetHighlightRenderer, type HighlightTarget } from "./TargetHighlight
 import { Input } from "./Input";
 import type { GameSocket } from "../net/Socket";
 import { useGameStore } from "../state/store";
+import { sfx } from "./Sfx";
 
 // Viewport: ~20×15 tiles visible around the player
 const VIEWPORT_TILES_X = 20;
@@ -165,6 +166,7 @@ export class Game {
             s.setBankOpen(true);
             // Welcome quest: tick "Visit the bank" once.
             s.incQuestObjective("welcome_to_mireholm", 2, 1);
+            sfx.bank();
           } else if (!adjacentToBank && s.bankOpen) s.setBankOpen(false);
         }
       }
