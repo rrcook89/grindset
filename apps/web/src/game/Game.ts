@@ -6,6 +6,7 @@ import { EntityRenderer } from "./EntityRenderer";
 import { NodeRenderer } from "./NodeRenderer";
 import { FloatingTextRenderer } from "./FloatingTextRenderer";
 import { TargetHighlightRenderer, type HighlightTarget } from "./TargetHighlightRenderer";
+import { AmbientParticles } from "./AmbientParticles";
 import { Input } from "./Input";
 import type { GameSocket } from "../net/Socket";
 import { useGameStore } from "../state/store";
@@ -100,6 +101,11 @@ export class Game {
     const floatRenderer = new FloatingTextRenderer();
     worldContainer.addChild(floatRenderer.container);
 
+    // Ambient drifting fireflies — pure cosmetic, sits above tiles, below
+    // entities so they pass behind sprites convincingly.
+    const ambient = new AmbientParticles();
+    worldContainer.addChildAt(ambient.container, 1);
+
     const input = new Input(worldContainer, socket, app.ticker);
 
     // Subscribe to store changes → update renderers each frame
@@ -140,6 +146,7 @@ export class Game {
       // Always tick animation (independent of store changes)
       entityRenderer.tick(deltaMs);
       floatRenderer.tick();
+      ambient.tick();
 
       // Target highlight rings — recompute every frame so they pulse
       // and follow moving mobs.
