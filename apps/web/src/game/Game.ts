@@ -199,11 +199,13 @@ export class Game {
         lastFloatSweep = now;
       }
 
-      // Bank proximity: open BankModal automatically when player is adjacent
-      // to a bank node, close when they wander off.
+      // Bank proximity: only AUTO-CLOSE when the player wanders off. Opening
+      // is explicit (click the bank tile while adjacent — handled by Input).
+      // This avoids the modal locking the world the moment you spawn next
+      // to it.
       {
         const s = useGameStore.getState();
-        if (s.localPlayer) {
+        if (s.localPlayer && s.bankOpen) {
           const lp = s.localPlayer;
           let adjacentToBank = false;
           for (const n of s.nodes.values()) {
@@ -213,12 +215,7 @@ export class Game {
               break;
             }
           }
-          if (adjacentToBank && !s.bankOpen) {
-            s.setBankOpen(true);
-            // Welcome quest: tick "Visit the bank" once.
-            s.incQuestObjective("welcome_to_mireholm", 2, 1);
-            sfx.bank();
-          } else if (!adjacentToBank && s.bankOpen) s.setBankOpen(false);
+          if (!adjacentToBank) s.setBankOpen(false);
         }
       }
 

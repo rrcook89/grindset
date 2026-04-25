@@ -4,6 +4,7 @@ import { encodeMoveIntent, encodeSkillStart, encodeCombatTarget } from "../net/p
 import type { GameSocket } from "../net/Socket";
 import { useGameStore } from "../state/store";
 import { isoToTile, tileToIso, GRID_W, GRID_H, tileDepth, HALF_W, HALF_H } from "./projection";
+import { sfx } from "./Sfx";
 
 const MARKER_COLOR = 0xe04545; // GRINDSET loss-red
 const MARKER_LIFE_MS = 700;
@@ -69,10 +70,13 @@ export class Input {
           ? Math.max(Math.abs(lp.x - tileX), Math.abs(lp.y - tileY)) <= 1
           : false;
         if (adjacent) {
-          useGameStore.getState().setBankOpen(true);
+          const store = useGameStore.getState();
+          store.setBankOpen(true);
+          // Welcome-to-Mireholm quest: tick "Visit the bank" once.
+          store.incQuestObjective("welcome_to_mireholm", 2, 1);
+          sfx.bank();
         } else {
           this.socket.sendRaw(encodeMoveIntent(tileX, tileY));
-          // Auto-open once player arrives — handled by Game.ts proximity check.
         }
       } else {
         this.socket.sendRaw(encodeSkillStart(nodeAtTile.id));
