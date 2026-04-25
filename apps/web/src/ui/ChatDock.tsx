@@ -1,8 +1,24 @@
 import { useRef, useState, useEffect } from "react";
 import { useGameStore } from "../state/store";
 import type { ChatChannel } from "../net/types";
+import { getActiveSocket } from "../net/Socket";
+import { encodeChatSend } from "../net/protocol";
 
 const CHANNELS: ChatChannel[] = ["global", "zone", "guild", "trade"];
+
+const CHANNEL_INDEX: Record<ChatChannel, number> = {
+  global: 0,
+  zone: 1,
+  guild: 2,
+  trade: 3,
+};
+
+const HELP_TEXT = [
+  "/me <action>  — emote in italics",
+  "/clear        — clear chat history",
+  "/help         — show commands",
+  "/level        — show your highest skill",
+].join("\n");
 
 const CHANNEL_COLOR: Record<ChatChannel, string> = {
   global: "text-parchment-grey",
@@ -28,18 +44,54 @@ export function ChatDock() {
 
   const visible = chat.filter((m) => m.channel === chatChannel || chatChannel === "global");
 
-  function handleSend() {
-    const text = input.trim();
-    if (!text) return;
-    // Optimistic local echo; server will broadcast back via WS
+  function localEcho(text: string, sender = "You") {
     addChatMessage({
-      id: `local-${Date.now()}`,
+      id: `local-${Date.now()}-${Math.random()}`,
       channel: chatChannel,
-      senderName: "You",
+      senderName: sender,
       text,
       timestamp: Date.now(),
     });
-    // TODO Sprint 6: send via socket.sendRaw(encodeChatSend(...))
+  }
+
+  function handleSend() {
+    const text = input.trim();
+    if (!text) return;
+
+    // Slash-commands: handled entirely client-side, never broadcast.
+    if (text.startsWith("/")) {
+      const [cmd, ...rest] = text.split(/\s+/);
+      const arg = rest.join(" ");
+      switch (cmd) {
+        case "/me":
+          if (arg) localEcho(`* ${arg} *`, "You");
+          break;
+        case "/clear":
+          useGameStore.setState({ chat: [] });
+          break;
+        case "/help":
+          for (const line of HELP_TEXT.split("\n")) localEcho(line, "system");
+          break;
+        case "/level": {
+          const skills = useGameStore.getState().skills;
+          const top = [...skills].sort((a, b) => b.level - a.level)[0];
+          if (top) localEcho(`Highest: ${top.name} L${top.level} (${top.xp.toLocaleString()} XP)`, "system");
+          break;
+        }
+        default:
+          localEcho(`unknown command: ${cmd}`, "system");
+      }
+      setInput("");
+      return;
+    }
+
+    // Real chat: send to server, optimistic local echo so the user sees
+    // their own message immediately. Server broadcast will arrive via WS.
+    const socket = getActiveSocket();
+    if (socket) {
+      socket.sendRaw(encodeChatSend(CHANNEL_INDEX[chatChannel], text));
+    }
+    localEcho(text);
     setInput("");
   }
 
