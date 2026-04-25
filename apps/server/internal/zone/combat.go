@@ -208,6 +208,23 @@ func (z *Zone) killMobLocked(p *Player, mob *Mob) {
 		default:
 		}
 	}
+
+	// Boss kill broadcast — every player in the zone gets a system chat
+	// line so people know the bog horror went down. Currently the only
+	// "boss" tier mob; extend the switch as more bosses join.
+	if mob.DefID == "bog_horror" {
+		bossMsg := protocol.EncodeChatRecv(protocol.ChatRecv{
+			Channel: protocol.ChatChannelGlobal,
+			Sender:  "system",
+			Body:    "⚔ " + p.Name + " has slain the Bog Horror!",
+		})
+		for _, viewer := range z.players {
+			select {
+			case viewer.Outbox <- bossMsg:
+			default:
+			}
+		}
+	}
 	// Queue respawn instead of dropping forever.
 	z.pendingRespawn = append(z.pendingRespawn, pendingRespawn{
 		id:          mob.ID,
