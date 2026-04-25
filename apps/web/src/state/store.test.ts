@@ -129,10 +129,11 @@ describe("floats", () => {
 
 describe("swing tracking", () => {
   it("triggerSwing records the latest event", () => {
-    useGameStore.getState().triggerSwing(1, 1_000_001);
+    useGameStore.getState().triggerSwing(1, 1_000_001, 7);
     const sw = useGameStore.getState().lastSwing!;
     expect(sw.attackerId).toBe(1);
     expect(sw.targetId).toBe(1_000_001);
+    expect(sw.damage).toBe(7);
     expect(typeof sw.born).toBe("number");
   });
 });

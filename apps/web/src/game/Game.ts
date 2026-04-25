@@ -168,6 +168,10 @@ export class Game {
         if (attTile && tgtTile) {
           entityRenderer.setSwing(sw.attackerId, attTile.x, attTile.y, tgtTile.x, tgtTile.y);
         }
+        // Hurt-shake the defender on a real hit (skip misses + heals).
+        if (sw.damage > 0 && sw.attackerId !== sw.targetId) {
+          entityRenderer.triggerHurt(sw.targetId);
+        }
       }
 
       // Always tick animation (independent of store changes)

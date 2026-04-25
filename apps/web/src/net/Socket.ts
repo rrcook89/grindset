@@ -134,7 +134,7 @@ export class GameSocket {
       case OP.COMBAT_HIT: {
         const p = decodeCombatHit(buf);
         // Swing animation — works for both player→mob and mob→player.
-        store.triggerSwing(p.attackerId, p.targetId);
+        store.triggerSwing(p.attackerId, p.targetId, p.damage);
         // Float a hit splat over the target.
         store.applyHitSplat({
           id: `${Date.now()}-${Math.random()}`,

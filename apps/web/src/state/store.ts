@@ -225,7 +225,7 @@ interface GameState {
   skillTargetId: number | null;
 
   // Last swing animation event — purely visual.
-  lastSwing: { attackerId: number; targetId: number; born: number } | null;
+  lastSwing: { attackerId: number; targetId: number; damage: number; born: number } | null;
 
   // Currently-equipped weapon defID (client-side prediction; server is
   // authoritative for damage rolls). null = unarmed.
@@ -258,7 +258,7 @@ interface GameState {
   clearExpiredFloats: () => void;
 
   setSkillTarget: (id: number | null) => void;
-  triggerSwing: (attackerId: number, targetId: number) => void;
+  triggerSwing: (attackerId: number, targetId: number, damage: number) => void;
   recordKill: () => void;
   setEquippedWeapon: (defID: string | null) => void;
 
@@ -464,8 +464,8 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   setSkillTarget: (id) => set({ skillTargetId: id }),
 
-  triggerSwing: (attackerId, targetId) =>
-    set({ lastSwing: { attackerId, targetId, born: Date.now() } }),
+  triggerSwing: (attackerId, targetId, damage) =>
+    set({ lastSwing: { attackerId, targetId, damage, born: Date.now() } }),
 
   recordKill: () => set((s) => ({ totalKills: s.totalKills + 1 })),
 

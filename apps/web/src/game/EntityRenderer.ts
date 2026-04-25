@@ -27,6 +27,8 @@ const BOB_AMP_PX = 3;
 
 const SWING_DURATION_MS = 220;
 const SWING_DISTANCE_PX = 8;
+const HURT_SHAKE_DURATION_MS = 220;
+const HURT_SHAKE_AMPLITUDE_PX = 4;
 
 export interface MobEntity {
   id: number;
@@ -55,6 +57,8 @@ interface SpriteEntry {
   prevTileY: number;
   /** +1 = facing screen-right (default), -1 = mirrored facing screen-left. */
   facing: 1 | -1;
+  /** performance.now() when this sprite last took damage; 0 = no shake. */
+  hurtAt: number;
 }
 
 interface SwingState {
@@ -88,6 +92,14 @@ export class EntityRenderer {
     this.container = new Container();
     // Iso depth-sort: sprites with larger (col + row) draw in front.
     this.container.sortableChildren = true;
+  }
+
+  /** Trigger a hurt-shake on the target sprite. Symmetric with the
+   *  attacker's lunge — defender briefly oscillates horizontally. */
+  triggerHurt(targetId: number): void {
+    const entry = this.sprites.get(targetId);
+    if (!entry) return;
+    entry.hurtAt = performance.now();
   }
 
   /** Trigger a lunge animation on the attacker's sprite toward the target tile. */
@@ -143,17 +155,31 @@ export class EntityRenderer {
       const lx = id === activeSwingId ? lungeOffX : 0;
       const ly = id === activeSwingId ? lungeOffY : 0;
 
+      // Hurt shake: defender oscillates briefly. Damped sine so it
+      // settles smoothly. Independent of lunge so a counter-attacking
+      // mob can lunge AND shake (took a hit, now retaliating).
+      let sx = 0;
+      if (entry.hurtAt > 0) {
+        const ht = (now - entry.hurtAt) / HURT_SHAKE_DURATION_MS;
+        if (ht >= 1) {
+          entry.hurtAt = 0;
+        } else {
+          // 4 cycles in 1 unit; amplitude decays linearly.
+          sx = Math.sin(ht * Math.PI * 8) * HURT_SHAKE_AMPLITUDE_PX * (1 - ht);
+        }
+      }
+
       // Mirror the sprite around its centre when facing screen-left.
       // scale.x flips around the local origin (0, 0), so we offset g.x by
       // SPRITE_W to keep the visual centred on the tile. hpBar + label are
       // not mirrored — they always read left-to-right.
       entry.g.scale.x = entry.facing;
-      entry.g.x = baseX + lx + (entry.facing < 0 ? SPRITE_W : 0);
+      entry.g.x = baseX + lx + sx + (entry.facing < 0 ? SPRITE_W : 0);
       entry.g.y = baseY + bob + ly;
-      entry.hpBar.x = baseX + lx;
+      entry.hpBar.x = baseX + lx + sx;
       entry.hpBar.y = baseY + bob + ly;
       if (entry.label) {
-        entry.label.x = baseX + lx + SPRITE_W / 2;
+        entry.label.x = baseX + lx + sx + SPRITE_W / 2;
         entry.label.y = baseY + bob + ly - 14;
       }
 
@@ -239,6 +265,7 @@ export class EntityRenderer {
         prevTileX: -1,
         prevTileY: -1,
         facing: 1,
+        hurtAt: 0,
       };
       this.sprites.set(id, entry);
       // Add in render-order: shadow → hpBar → g (so shadow stays under feet,
