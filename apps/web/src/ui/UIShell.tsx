@@ -8,6 +8,7 @@ import { CombatHud } from "./CombatHud";
 import { PlayerHud } from "./PlayerHud";
 import { DeathOverlay } from "./DeathOverlay";
 import { TutorialOverlay } from "./TutorialOverlay";
+import { MiniMap } from "./MiniMap";
 import { BankModal } from "./BankModal";
 import { GrandBazaar } from "./GrandBazaar";
 import { QuestLog } from "./QuestLog";
@@ -55,8 +56,9 @@ export function UIShell() {
 
           {/* Centre: Combat HUD sits absolutely, no space needed here */}
 
-          {/* Right: Wallet + GE button */}
+          {/* Right: MiniMap + Wallet + GE button */}
           <div className="flex flex-col items-end gap-2">
+            <MiniMap />
             <WalletHud />
             <button
               className="rounded border border-ingot-gold/30 bg-obsidian/80 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-ingot-gold backdrop-blur-sm hover:bg-ingot-gold/10"

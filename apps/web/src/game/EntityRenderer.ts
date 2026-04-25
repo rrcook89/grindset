@@ -11,7 +11,6 @@ const COLOR_SELF_BODY   = 0xf5c14b; // ingot gold — bright body
 const COLOR_SELF_HAT    = 0xd4a017; // slightly darker hat brim
 const COLOR_OTHER_BODY  = 0xa07820; // muted gold body
 const COLOR_OTHER_HAT   = 0x7a5c10; // muted gold hat
-const COLOR_MOB         = 0xe04545; // loss red for mobs
 const COLOR_HP_BG       = 0xe04545; // loss red — empty HP
 const COLOR_HP_FG       = 0x3bd67a; // gain green — filled HP
 
@@ -245,9 +244,14 @@ export class EntityRenderer {
 
     const g = entry.g;
     g.clear();
-    // Red circle, slightly larger than old placeholder
-    g.circle(SPRITE_W / 2, SPRITE_H / 2, 18).fill({ color: COLOR_MOB });
-    g.circle(SPRITE_W / 2, SPRITE_H / 2, 18).stroke({ color: 0x800000, width: 2 });
+    // Tier visualisation by maxHP — bigger + darker for higher tiers.
+    let radius = 12, body = 0xe04545, outline = 0x800000;
+    if (maxHp >= 100) { radius = 22; body = 0x2a1030; outline = 0x100018; }       // bog_horror
+    else if (maxHp >= 60) { radius = 20; body = 0x6a6a78; outline = 0x303040; }    // dwarf_thug
+    else if (maxHp >= 30) { radius = 18; body = 0x8a3060; outline = 0x501030; }    // mire_bandit
+    else if (maxHp >= 15) { radius = 16; body = 0xc04535; outline = 0x602010; }    // bog_goblin
+    g.circle(SPRITE_W / 2, SPRITE_H / 2, radius).fill({ color: body });
+    g.circle(SPRITE_W / 2, SPRITE_H / 2, radius).stroke({ color: outline, width: 2 });
 
     g.x = tileX * TILE_SIZE + (TILE_SIZE - SPRITE_W) / 2;
     g.y = tileY * TILE_SIZE + (TILE_SIZE - SPRITE_H) / 2;
