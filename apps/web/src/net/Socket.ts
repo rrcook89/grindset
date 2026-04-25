@@ -140,11 +140,25 @@ export class GameSocket {
             ? { x: stateNow.localPlayer.x, y: stateNow.localPlayer.y }
             : null;
         if (targetTile) {
+          // Server signals a crit by sending damage > maxHit.
+          const isCrit = p.damage > 0 && p.damage > p.maxHit;
+          let floatText: string;
+          let floatColor: number;
+          if (p.damage === 0) {
+            floatText = "miss";
+            floatColor = 0x9ca3af; // grey
+          } else if (isCrit) {
+            floatText = `CRIT! -${p.damage}`;
+            floatColor = 0xf5c14b; // ingot-gold
+          } else {
+            floatText = `-${p.damage}`;
+            floatColor = 0xe04545; // loss-red
+          }
           store.pushFloat({
             tileX: targetTile.x,
             tileY: targetTile.y,
-            text: p.damage === 0 ? "miss" : `-${p.damage}`,
-            color: p.damage === 0 ? 0x9ca3af : 0xe04545, // grey on miss, loss-red on hit
+            text: floatText,
+            color: floatColor,
           });
         }
         // HP propagation:

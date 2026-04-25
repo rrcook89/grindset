@@ -152,6 +152,11 @@ func (z *Zone) resolveCombatLocked() {
 			damage = 0
 		} else {
 			damage = uint16(randInRange(1, playerMaxHit))
+			// Crit: 10% chance to double the swing. Damage will exceed maxHit
+			// so the client treats it as a crit and renders it specially.
+			if randInRange(0, 99) < 10 {
+				damage *= 2
+			}
 		}
 
 		// Apply.
@@ -221,17 +226,35 @@ func (z *Zone) killMobLocked(p *Player, mob *Mob) {
 	dropped := uint64(randInRange(dropLo, dropHi)) * uint64(grindBaseUnit)
 	p.GrindBalance += int64(dropped)
 
-	// Notify attacker: SkillTick for combat XP, wallet broadcasts.
+	// Item loot: per-mob chance for one specific drop.
+	lootID, lootChance := mobLootRoll(mob.DefID)
+	var lootSlot int = -1
+	if lootID != "" && randInRange(0, 99) < lootChance {
+		lootSlot = addInventoryItem(&p.Inventory, lootID, 1)
+	}
+
+	// Notify attacker: SkillTick for combat XP + (optional) loot item, wallet broadcasts.
+	tickItem := ""
+	if lootSlot >= 0 {
+		tickItem = lootID
+	}
 	tick := protocol.EncodeSkillTick(protocol.SkillTick{
 		Skill:        skillIndex(skills.CombatMelee),
 		XPGained:     uint16(playerAttackXP),
 		TotalXP:      uint32(newXP),
 		GrindDropped: dropped,
-		ItemDefID:    "",
+		ItemDefID:    tickItem,
 	})
 	select {
 	case p.Outbox <- tick:
 	default:
+	}
+	if lootSlot >= 0 {
+		invMsg := protocol.EncodeInventoryDelta([]protocol.InventorySlot{p.Inventory[lootSlot]})
+		select {
+		case p.Outbox <- invMsg:
+		default:
+		}
 	}
 	if newLevel > oldLevel {
 		lvl := protocol.EncodeSkillLevelUp(protocol.SkillLevelUp{
@@ -320,6 +343,24 @@ func (z *Zone) drainRespawnsLocked() {
 		}
 	}
 	z.pendingRespawn = keep
+}
+
+// mobLootRoll returns the item def + percentage chance (0–100) of dropping
+// it on kill. Empty defID = mob has no item table.
+func mobLootRoll(defID string) (string, int) {
+	switch defID {
+	case "marsh_rat":
+		return "rat_tail", 30
+	case "bog_goblin":
+		return "goblin_ear", 25
+	case "mire_bandit":
+		return "coin_pouch", 20
+	case "dwarf_thug":
+		return "dwarven_shard", 15
+	case "bog_horror":
+		return "bog_essence", 10
+	}
+	return "", 0
 }
 
 // mobDropRange returns the $GRIND drop range (whole units) for a mob def.

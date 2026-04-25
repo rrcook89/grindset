@@ -30,6 +30,12 @@ const TABLE: Record<string, ItemDisplay> = {
   bronze_dagger: { name: "Bronze dagger", color: "#cd7f32" },
   iron_axe: { name: "Iron axe", color: "#888888" },
   steel_sword: { name: "Steel sword", color: "#b0b0b0" },
+  // Mob loot
+  rat_tail: { name: "Rat tail", color: "#7a4030" },
+  goblin_ear: { name: "Goblin ear", color: "#4a6a30" },
+  coin_pouch: { name: "Coin pouch", color: "#a37020" },
+  dwarven_shard: { name: "Dwarven shard", color: "#7a7280" },
+  bog_essence: { name: "Bog essence", color: "#3a8c5a" },
 };
 
 export function itemDisplay(defId: string): ItemDisplay {
