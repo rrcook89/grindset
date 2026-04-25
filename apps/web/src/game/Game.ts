@@ -7,6 +7,7 @@ import { NodeRenderer } from "./NodeRenderer";
 import { FloatingTextRenderer } from "./FloatingTextRenderer";
 import { TargetHighlightRenderer, type HighlightTarget } from "./TargetHighlightRenderer";
 import { AmbientParticles } from "./AmbientParticles";
+import { DecorationRenderer } from "./DecorationRenderer";
 import { Input } from "./Input";
 import type { GameSocket } from "../net/Socket";
 import { useGameStore } from "../state/store";
@@ -79,10 +80,24 @@ export class Game {
     const tileRenderer = new TileRenderer();
     worldContainer.addChild(tileRenderer.container);
 
+    // Decorations live just above the tiles. We rebuild them once we see
+    // which tiles are occupied by nodes (after first render).
+    const decoRenderer = new DecorationRenderer();
+    worldContainer.addChild(decoRenderer.container);
+    let decoBuilt = false;
+    const buildDecorations = () => {
+      const { nodes, mobs } = useGameStore.getState();
+      const occupied = new Set<string>();
+      for (const n of nodes.values()) occupied.add(`${n.x},${n.y}`);
+      for (const m of mobs.values()) occupied.add(`${m.x},${m.y}`);
+      decoRenderer.build(occupied);
+    };
+
     // Re-render tiles + repaint canvas background when the theme changes.
     const offTheme = onThemeChange(() => {
       tileRenderer.rebuild();
       app.renderer.background.color = activeTheme().background;
+      buildDecorations();
     });
 
     // Target highlight ring sits between tiles and nodes/entities so it
@@ -206,6 +221,12 @@ export class Game {
       entityRenderer.updateMobs(mobs);
       nodeRenderer.updateNodes(nodes);
       floatRenderer.update(floats);
+
+      // Build decorations once we have a node set to avoid them.
+      if (!decoBuilt && nodes.size > 0) {
+        buildDecorations();
+        decoBuilt = true;
+      }
 
       // Camera: centre viewport on the local player's iso position.
       if (localPlayer) {
