@@ -97,8 +97,29 @@ export class Game {
     });
 
     let lastFloatSweep = 0;
+    let lastSwingBorn = 0;
     app.ticker.add((ticker) => {
       const deltaMs = ticker.deltaMS;
+
+      // Trigger swing animation if a fresh swing event landed.
+      const swingState = useGameStore.getState();
+      const sw = swingState.lastSwing;
+      if (sw && sw.born !== lastSwingBorn) {
+        lastSwingBorn = sw.born;
+        // Resolve attacker + target tiles. Either side may be local player or mob.
+        const lp = swingState.localPlayer;
+        const attTile =
+          lp && lp.id === sw.attackerId
+            ? { x: lp.x, y: lp.y }
+            : swingState.mobs.get(sw.attackerId);
+        const tgtTile =
+          lp && lp.id === sw.targetId
+            ? { x: lp.x, y: lp.y }
+            : swingState.mobs.get(sw.targetId);
+        if (attTile && tgtTile) {
+          entityRenderer.setSwing(sw.attackerId, attTile.x, attTile.y, tgtTile.x, tgtTile.y);
+        }
+      }
 
       // Always tick animation (independent of store changes)
       entityRenderer.tick(deltaMs);

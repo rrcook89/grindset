@@ -41,14 +41,43 @@ interface SpriteEntry {
   moving: boolean;
   prevX: number;
   prevY: number;
+  // Last lunge offset already applied to g.x/y — subtracted before reapplying.
+  lungeOffX: number;
+  lungeOffY: number;
 }
+
+interface SwingState {
+  attackerId: number;
+  /** Direction unit vector toward target */
+  dirX: number;
+  dirY: number;
+  born: number;
+}
+
+const SWING_DURATION_MS = 220;
+const SWING_DISTANCE_PX = 8;
 
 export class EntityRenderer {
   readonly container: Container;
   private sprites = new Map<number, SpriteEntry>();
+  private swing: SwingState | null = null;
 
   constructor() {
     this.container = new Container();
+  }
+
+  /** Trigger a lunge animation on the attacker's sprite toward the target tile. */
+  setSwing(attackerId: number, attackerX: number, attackerY: number, targetX: number, targetY: number): void {
+    const dx = targetX - attackerX;
+    const dy = targetY - attackerY;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len === 0) return;
+    this.swing = {
+      attackerId,
+      dirX: dx / len,
+      dirY: dy / len,
+      born: performance.now(),
+    };
   }
 
   /** Called every ticker frame with delta in ms */
@@ -57,13 +86,41 @@ export class EntityRenderer {
     void deltaMs;
     const now = performance.now();
     for (const [, entry] of this.sprites) {
-      if (!entry.moving) continue;
-      if (now - entry.lastAnim >= ANIM_INTERVAL_MS) {
+      if (entry.moving && now - entry.lastAnim >= ANIM_INTERVAL_MS) {
         entry.animFrame = (entry.animFrame + 1) % 2;
         entry.lastAnim = now;
         // The y-position update happens in next updatePlayers call;
         // we can nudge the existing graphic directly.
         entry.g.y += BOB_OFFSET[entry.animFrame] - BOB_OFFSET[(entry.animFrame + 1) % 2];
+      }
+    }
+
+    // Lunge: apply swing offset to attacker's sprite, undo previous offset first.
+    if (this.swing) {
+      const t = (now - this.swing.born) / SWING_DURATION_MS;
+      const entry = this.sprites.get(this.swing.attackerId);
+      if (entry) {
+        // Undo previous offset
+        entry.g.x -= entry.lungeOffX;
+        entry.g.y -= entry.lungeOffY;
+        entry.hpBar.x -= entry.lungeOffX;
+        entry.hpBar.y -= entry.lungeOffY;
+        if (t >= 1) {
+          entry.lungeOffX = 0;
+          entry.lungeOffY = 0;
+          this.swing = null;
+        } else {
+          // sin(πt): 0 → 1 → 0
+          const a = Math.sin(t * Math.PI);
+          entry.lungeOffX = this.swing.dirX * SWING_DISTANCE_PX * a;
+          entry.lungeOffY = this.swing.dirY * SWING_DISTANCE_PX * a;
+          entry.g.x += entry.lungeOffX;
+          entry.g.y += entry.lungeOffY;
+          entry.hpBar.x += entry.lungeOffX;
+          entry.hpBar.y += entry.lungeOffY;
+        }
+      } else if (t >= 1) {
+        this.swing = null;
       }
     }
   }
@@ -112,7 +169,17 @@ export class EntityRenderer {
     if (!entry) {
       const g = new Graphics();
       const hpBar = new Graphics();
-      entry = { g, hpBar, animFrame: 0, lastAnim: performance.now(), moving: false, prevX: -1, prevY: -1 };
+      entry = {
+        g,
+        hpBar,
+        animFrame: 0,
+        lastAnim: performance.now(),
+        moving: false,
+        prevX: -1,
+        prevY: -1,
+        lungeOffX: 0,
+        lungeOffY: 0,
+      };
       this.sprites.set(id, entry);
       this.container.addChild(hpBar);
       this.container.addChild(g);
@@ -161,9 +228,11 @@ export class EntityRenderer {
     g.rect(headCX - 7, headCY - headR - 14 + bobY, 14, 16).fill({ color: hatColor });
     g.rect(headCX - 4, headCY - headR - 22 + bobY, 8, 10).fill({ color: hatColor });
 
-    // Position bounding box
+    // Position bounding box (base — lunge offset is reapplied by tick())
     g.x = tileX * TILE_SIZE + (TILE_SIZE - SPRITE_W) / 2;
     g.y = tileY * TILE_SIZE + (TILE_SIZE - SPRITE_H) / 2;
+    entry.lungeOffX = 0;
+    entry.lungeOffY = 0;
 
     this.drawHpBar(entry.hpBar, tileX, tileY, 1, 1);
   }
@@ -182,6 +251,8 @@ export class EntityRenderer {
 
     g.x = tileX * TILE_SIZE + (TILE_SIZE - SPRITE_W) / 2;
     g.y = tileY * TILE_SIZE + (TILE_SIZE - SPRITE_H) / 2;
+    entry.lungeOffX = 0;
+    entry.lungeOffY = 0;
 
     this.drawHpBar(entry.hpBar, tileX, tileY, hp, maxHp);
   }

@@ -6,6 +6,8 @@ import { SkillPanel } from "./SkillPanel";
 import { Inventory } from "./Inventory";
 import { CombatHud } from "./CombatHud";
 import { PlayerHud } from "./PlayerHud";
+import { DeathOverlay } from "./DeathOverlay";
+import { TutorialOverlay } from "./TutorialOverlay";
 import { BankModal } from "./BankModal";
 import { GrandBazaar } from "./GrandBazaar";
 import { QuestLog } from "./QuestLog";
@@ -31,9 +33,11 @@ export function UIShell() {
 
   return (
     <>
-      {/* Modals (outside pointer-events layer) */}
+      {/* Modals + global overlays (outside pointer-events layer) */}
       <BankModal />
       <GrandBazaar />
+      <DeathOverlay />
+      <TutorialOverlay />
 
       <div className="pointer-events-none absolute inset-0 flex flex-col">
         {/* ── Top bar ─────────────────────────────────────────── */}

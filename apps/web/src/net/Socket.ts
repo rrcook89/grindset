@@ -121,6 +121,8 @@ export class GameSocket {
 
       case OP.COMBAT_HIT: {
         const p = decodeCombatHit(buf);
+        // Swing animation — works for both player→mob and mob→player.
+        store.triggerSwing(p.attackerId, p.targetId);
         // Float a hit splat over the target.
         store.applyHitSplat({
           id: `${Date.now()}-${Math.random()}`,
@@ -229,6 +231,16 @@ export class GameSocket {
         if (name) {
           store.setLevelUpFlash(name);
           setTimeout(() => store.setLevelUpFlash(null), 3000);
+          // Big celebratory float over the player.
+          const lp = useGameStore.getState().localPlayer;
+          if (lp) {
+            store.pushFloat({
+              tileX: lp.x,
+              tileY: lp.y,
+              text: `LEVEL UP! ${name} → ${p.newLevel}`,
+              color: 0xf5c14b, // ingot-gold
+            });
+          }
         }
         break;
       }

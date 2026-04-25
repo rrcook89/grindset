@@ -128,6 +128,9 @@ interface GameState {
   // Currently-clicked skill node (visual highlight only, not authoritative).
   skillTargetId: number | null;
 
+  // Last swing animation event — purely visual.
+  lastSwing: { attackerId: number; targetId: number; born: number } | null;
+
   // Auth
   jwt: string | null;
 
@@ -150,6 +153,7 @@ interface GameState {
   clearExpiredFloats: () => void;
 
   setSkillTarget: (id: number | null) => void;
+  triggerSwing: (attackerId: number, targetId: number) => void;
 
   // Skills
   applySkillUpdate: (skill: Skill) => void;
@@ -201,6 +205,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   mobs: new Map(),
   floats: [],
   skillTargetId: null,
+  lastSwing: null,
 
   skills: defaultSkills(),
   levelUpFlash: null,
@@ -324,6 +329,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   setSkillTarget: (id) => set({ skillTargetId: id }),
+
+  triggerSwing: (attackerId, targetId) =>
+    set({ lastSwing: { attackerId, targetId, born: Date.now() } }),
 
   // ── Skills ──────────────────────────────────────────────────────────────────
 
