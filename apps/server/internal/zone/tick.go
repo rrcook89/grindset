@@ -75,7 +75,10 @@ func (z *Zone) step() {
 	// 4. Combat: swing at the player's active CombatTarget
 	z.resolveCombatLocked()
 
-	// 5. Broadcast: send per-viewer filtered PositionDelta
+	// 5. Mob respawns whose timer has fired
+	z.drainRespawnsLocked()
+
+	// 6. Broadcast: send per-viewer filtered PositionDelta
 	snapshot := z.snapshotLocked()
 	for _, viewer := range z.players {
 		vis := make([]protocol.EntityPos, 0, len(snapshot))

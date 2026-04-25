@@ -23,13 +23,24 @@ type Zone struct {
 	tick        time.Duration
 	log         *slog.Logger
 
-	mu        sync.Mutex
-	players   map[uint32]*Player
-	mobs      map[uint32]*Mob
-	nodes     map[uint32]*SkillNode
-	intents   []intent
-	byName    map[string]uint32
-	nextID    atomic.Uint32
+	mu             sync.Mutex
+	players        map[uint32]*Player
+	mobs           map[uint32]*Mob
+	nodes          map[uint32]*SkillNode
+	intents        []intent
+	byName         map[string]uint32
+	nextID         atomic.Uint32
+	pendingRespawn []pendingRespawn
+}
+
+// pendingRespawn is a queued mob respawn waiting for its timer to fire.
+type pendingRespawn struct {
+	id          uint32
+	defID       string
+	x, y        uint16
+	maxHP       uint16
+	respawnSecs int
+	at          time.Time
 }
 
 type Player struct {
@@ -61,6 +72,10 @@ type Player struct {
 	CombatTarget uint32
 	// Tick counter so we attack on a cadence rather than every frame.
 	AttackCooldown int
+
+	// HP. 0 = dead → respawn at zone home next tick.
+	HP    uint16
+	MaxHP uint16
 }
 
 type intent struct {
@@ -114,6 +129,8 @@ func (z *Zone) Join(name string) (*Player, protocol.Welcome) {
 		TargetY: spawnY,
 		Outbox:  make(chan []byte, 64),
 		SkillXP: map[skills.Name]int64{},
+		HP:      100,
+		MaxHP:   100,
 	}
 	z.players[id] = p
 	z.byName[name] = id

@@ -8,10 +8,28 @@ import (
 )
 
 const (
-	attackIntervalTicks = 5  // ~2s at 400ms tick
-	playerMaxHit        = 8  // base; gear bonuses are a later sprint
-	playerAttackXP      = 50 // melee XP per kill — see docs/06-skills.md
+	attackIntervalTicks    = 5  // ~2s at 400ms tick
+	mobAttackIntervalTicks = 6  // mobs swing slightly slower than players
+	playerMaxHit           = 8  // base; gear bonuses are a later sprint
+	playerAttackXP         = 50 // melee XP per kill — see docs/06-skills.md
 )
+
+// mobMaxHit returns a per-tier damage ceiling. Cheap Sprint-1 table.
+func mobMaxHit(defID string) uint16 {
+	switch defID {
+	case "marsh_rat":
+		return 3
+	case "bog_goblin":
+		return 5
+	case "mire_bandit":
+		return 8
+	case "dwarf_thug":
+		return 12
+	case "bog_horror":
+		return 22
+	}
+	return 4
+}
 
 // SetCombatTarget points the player at mobID and sets up movement onto its tile.
 // 0 mobID clears the target.
@@ -40,10 +58,62 @@ func (z *Zone) SetCombatTarget(pid, mobID uint32) {
 	p.TargetY = mob.Y
 }
 
-// resolveCombatLocked runs each player's active combat target. Caller holds z.mu.
+// resolveCombatLocked runs each player's active combat target plus mob
+// counter-attacks. Caller holds z.mu.
 func (z *Zone) resolveCombatLocked() {
+	// 1. Mobs swing back at any adjacent player who is targeting them.
+	for _, mob := range z.mobs {
+		if mob.HP == 0 {
+			continue
+		}
+		// Find an attacker (cheapest: scan players who target this mob).
+		var attacker *Player
+		for _, pl := range z.players {
+			if pl.HP > 0 && pl.CombatTarget == mob.ID && adjacentOrSame(pl.X, pl.Y, mob.X, mob.Y) {
+				attacker = pl
+				break
+			}
+		}
+		if attacker == nil {
+			mob.AttackCooldown = 0
+			continue
+		}
+		if mob.AttackCooldown > 0 {
+			mob.AttackCooldown--
+			continue
+		}
+		mob.AttackCooldown = mobAttackIntervalTicks
+
+		max := mobMaxHit(mob.DefID)
+		var dmg uint16
+		if randInRange(0, 99) < 15 {
+			dmg = 0 // miss
+		} else {
+			dmg = uint16(randInRange(1, int(max)))
+		}
+		if dmg >= attacker.HP {
+			attacker.HP = 0
+		} else {
+			attacker.HP -= dmg
+		}
+		hit := protocol.EncodeCombatHit(protocol.CombatHit{
+			AttackerID: mob.ID,
+			TargetID:   attacker.ID,
+			Damage:     dmg,
+			MaxHit:     max,
+		})
+		select {
+		case attacker.Outbox <- hit:
+		default:
+		}
+		if attacker.HP == 0 {
+			z.killPlayerLocked(attacker, mob.ID)
+		}
+	}
+
+	// 2. Players swing at their target.
 	for _, p := range z.players {
-		if p.CombatTarget == 0 {
+		if p.HP == 0 || p.CombatTarget == 0 {
 			continue
 		}
 		mob, ok := z.mobs[p.CombatTarget]
@@ -114,6 +184,16 @@ func (z *Zone) killMobLocked(p *Player, mob *Mob) {
 		default:
 		}
 	}
+	// Queue respawn instead of dropping forever.
+	z.pendingRespawn = append(z.pendingRespawn, pendingRespawn{
+		id:          mob.ID,
+		defID:       mob.DefID,
+		x:           mob.OriginX,
+		y:           mob.OriginY,
+		maxHP:       mob.MaxHP,
+		respawnSecs: mob.RespawnSecs,
+		at:          time.Now().Add(time.Duration(mob.RespawnSecs) * time.Second),
+	})
 	delete(z.mobs, mob.ID)
 
 	// XP for the killer.
@@ -172,6 +252,60 @@ func (z *Zone) killMobLocked(p *Player, mob *Mob) {
 
 	// Clear the target so the player stops attacking nothing.
 	p.CombatTarget = 0
+}
+
+// killPlayerLocked drops the player back at zone home with full HP.
+// Caller holds z.mu. Sprint-1 PvE death is forgiving — no item drops.
+func (z *Zone) killPlayerLocked(p *Player, killerID uint32) {
+	deathMsg := protocol.EncodeCombatDeath(protocol.CombatDeath{
+		EntityID: p.ID,
+		KillerID: killerID,
+	})
+	for _, viewer := range z.players {
+		select {
+		case viewer.Outbox <- deathMsg:
+		default:
+		}
+	}
+	// Respawn at zone center with full HP, drop combat target/action.
+	p.X = uint16(z.w / 2)
+	p.Y = uint16(z.h / 2)
+	p.TargetX = p.X
+	p.TargetY = p.Y
+	p.HP = p.MaxHP
+	p.CombatTarget = 0
+	p.AttackCooldown = 0
+	p.Action = nil
+	p.ActionNodeID = 0
+}
+
+// drainRespawnsLocked moves any pending respawn whose timer has fired back
+// into the live mob map. Caller holds z.mu.
+func (z *Zone) drainRespawnsLocked() {
+	if len(z.pendingRespawn) == 0 {
+		return
+	}
+	now := time.Now()
+	keep := z.pendingRespawn[:0]
+	for _, r := range z.pendingRespawn {
+		if now.Before(r.at) {
+			keep = append(keep, r)
+			continue
+		}
+		// Reuse the same id so clients don't accumulate stale handles.
+		z.mobs[r.id] = &Mob{
+			ID:          r.id,
+			DefID:       r.defID,
+			X:           r.x,
+			Y:           r.y,
+			HP:          r.maxHP,
+			MaxHP:       r.maxHP,
+			OriginX:     r.x,
+			OriginY:     r.y,
+			RespawnSecs: r.respawnSecs,
+		}
+	}
+	z.pendingRespawn = keep
 }
 
 // mobDropRange returns the $GRIND drop range (whole units) for a mob def.
