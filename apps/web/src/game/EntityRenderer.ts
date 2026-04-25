@@ -199,17 +199,22 @@ export class EntityRenderer {
     }
   }
 
-  updatePlayers(localPlayer: Player | null, others: Map<number, Player>, names: Map<number, string>): void {
+  updatePlayers(
+    localPlayer: Player | null,
+    others: Map<number, Player>,
+    names: Map<number, string>,
+    selfWeapon: string | null = null,
+  ): void {
     const seen = new Set<number>();
 
     if (localPlayer) {
       seen.add(localPlayer.id);
-      this.upsertPlayer(localPlayer.id, localPlayer.x, localPlayer.y, true, names.get(localPlayer.id) ?? null);
+      this.upsertPlayer(localPlayer.id, localPlayer.x, localPlayer.y, true, names.get(localPlayer.id) ?? null, selfWeapon);
     }
 
     for (const [id, player] of others) {
       seen.add(id);
-      this.upsertPlayer(id, player.x, player.y, false, names.get(id) ?? null);
+      this.upsertPlayer(id, player.x, player.y, false, names.get(id) ?? null, null);
     }
 
     this.cullUnseen(seen);
@@ -302,7 +307,7 @@ export class EntityRenderer {
     entry.moveStart = performance.now();
   }
 
-  private upsertPlayer(id: number, tileX: number, tileY: number, isSelf: boolean, name: string | null): void {
+  private upsertPlayer(id: number, tileX: number, tileY: number, isSelf: boolean, name: string | null, weapon: string | null = null): void {
     const startPx = tileToPx(tileX, tileY);
     const entry = this.getOrCreate(id, startPx);
     this.retargetIfMoved(entry, tileX, tileY);
@@ -392,6 +397,13 @@ export class EntityRenderer {
       g.ellipse(cx, feetY + 2, 18, 4).stroke({ color: 0xffffff, width: 2, alpha: 0.7 });
     }
 
+    // Wielded weapon — drawn in the right hand (screen-right side at
+    // shoulder height). Only the local player has a known weapon here;
+    // remote players' weapons aren't broadcast yet.
+    if (weapon) {
+      drawWeapon(g, cx + 14, 50, weapon);
+    }
+
     // Name label
     this.applyLabel(entry, name, isSelf ? 0xffffff : 0xc8a040);
 
@@ -462,6 +474,75 @@ export class EntityRenderer {
     if (fill > 0) {
       hpBar.rect(HP_BAR_OX, HP_BAR_OY, Math.round(HP_BAR_W * fill), HP_BAR_H).fill({ color: COLOR_HP_FG });
     }
+  }
+}
+
+/**
+ * Render the equipped weapon in the player's right hand. Anchor (handX, handY)
+ * is roughly where the wizard's right palm would be — drawing extends up
+ * for swords, out for axes, point-down for daggers.
+ */
+function drawWeapon(g: Graphics, handX: number, handY: number, defID: string): void {
+  switch (defID) {
+    case "bronze_dagger": {
+      // Short blade pointing down-and-out
+      g.poly([
+        handX - 1, handY,
+        handX + 4, handY + 1,
+        handX + 6, handY + 10,
+        handX + 3, handY + 11,
+      ]).fill({ color: 0xcd7f32 });
+      // Hilt
+      g.rect(handX - 2, handY - 2, 7, 3).fill({ color: 0x4a2a10 });
+      // Pommel
+      g.circle(handX - 1, handY - 2, 1.5).fill({ color: 0x8a6a40 });
+      break;
+    }
+    case "iron_axe": {
+      // Shaft
+      g.rect(handX, handY - 14, 2, 22).fill({ color: 0x4a2a10 });
+      // Axe head — angled blade
+      g.poly([
+        handX + 2, handY - 14,
+        handX + 9, handY - 11,
+        handX + 8, handY - 6,
+        handX + 2, handY - 7,
+      ]).fill({ color: 0x888888 });
+      g.poly([
+        handX + 2, handY - 14,
+        handX + 9, handY - 11,
+        handX + 8, handY - 6,
+        handX + 2, handY - 7,
+      ]).stroke({ color: 0x444444, width: 1 });
+      // Highlight on the blade edge
+      g.poly([
+        handX + 5, handY - 13,
+        handX + 9, handY - 11,
+        handX + 7, handY - 9,
+      ]).fill({ color: 0xc0c0c0, alpha: 0.6 });
+      break;
+    }
+    case "steel_sword": {
+      // Long blade pointing up
+      g.poly([
+        handX - 1, handY - 24,
+        handX + 1, handY - 26,
+        handX + 3, handY - 24,
+        handX + 3, handY,
+        handX - 1, handY,
+      ]).fill({ color: 0xc0c0c0 });
+      // Blade highlight (centre fuller)
+      g.rect(handX, handY - 22, 1, 20).fill({ color: 0xffffff, alpha: 0.45 });
+      // Crossguard
+      g.rect(handX - 4, handY, 10, 2).fill({ color: 0xb09028 });
+      // Grip
+      g.rect(handX - 1, handY + 2, 4, 6).fill({ color: 0x3a1a08 });
+      // Pommel
+      g.circle(handX + 1, handY + 9, 1.8).fill({ color: 0xb09028 });
+      break;
+    }
+    default:
+      break;
   }
 }
 
