@@ -161,8 +161,11 @@ export class Game {
               break;
             }
           }
-          if (adjacentToBank && !s.bankOpen) s.setBankOpen(true);
-          else if (!adjacentToBank && s.bankOpen) s.setBankOpen(false);
+          if (adjacentToBank && !s.bankOpen) {
+            s.setBankOpen(true);
+            // Welcome quest: tick "Visit the bank" once.
+            s.incQuestObjective("welcome_to_mireholm", 2, 1);
+          } else if (!adjacentToBank && s.bankOpen) s.setBankOpen(false);
         }
       }
 

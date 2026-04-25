@@ -69,6 +69,30 @@ function xpForLevel(level: number): number {
   return Math.floor(total / 4);
 }
 
+function starterQuests(): Quest[] {
+  return [
+    {
+      id: "welcome_to_mireholm",
+      name: "Welcome to Mireholm",
+      status: "active",
+      objectives: [
+        { description: "Mine 3 ores", current: 0, target: 3 },
+        { description: "Kill 1 mob", current: 0, target: 1 },
+        { description: "Visit the bank", current: 0, target: 1 },
+      ],
+    },
+    {
+      id: "swing_school",
+      name: "Swing School",
+      status: "active",
+      objectives: [
+        { description: "Land 5 critical hits", current: 0, target: 5 },
+        { description: "Reach Melee level 3", current: 0, target: 3 },
+      ],
+    },
+  ];
+}
+
 function defaultSkills(): Skill[] {
   return SKILL_NAMES.map((name) => ({
     name,
@@ -173,6 +197,11 @@ interface GameState {
 
   // Quests
   setQuests: (quests: Quest[]) => void;
+  /**
+   * Increment a quest objective by `amount`. If the quest's last incomplete
+   * objective fills, the quest is marked complete.
+   */
+  incQuestObjective: (questId: string, objectiveIdx: number, amount: number) => void;
 
   // Grand Bazaar
   setGEOrders: (orders: GEOrder[]) => void;
@@ -216,7 +245,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   wallet: { balance: 0n, ledger: [] },
 
-  quests: [],
+  quests: starterQuests(),
 
   geOrders: [],
   geOpen: false,
@@ -410,6 +439,21 @@ export const useGameStore = create<GameState>((set, get) => ({
   // ── Quests ──────────────────────────────────────────────────────────────────
 
   setQuests: (quests) => set({ quests }),
+
+  incQuestObjective: (questId, objectiveIdx, amount) =>
+    set((s) => {
+      const next = s.quests.map((q) => {
+        if (q.id !== questId || q.status === "complete") return q;
+        const objs = q.objectives.map((o, i) => {
+          if (i !== objectiveIdx) return o;
+          if (o.current >= o.target) return o;
+          return { ...o, current: Math.min(o.target, o.current + amount) };
+        });
+        const allDone = objs.every((o) => o.current >= o.target);
+        return { ...q, objectives: objs, status: allDone ? ("complete" as const) : q.status };
+      });
+      return { quests: next };
+    }),
 
   // ── Grand Bazaar ─────────────────────────────────────────────────────────────
 

@@ -178,6 +178,10 @@ export class GameSocket {
             hp: p.targetHp,
             maxHp: p.targetMaxHp,
           });
+          // Quest: count crits for "Swing School".
+          if (p.damage > 0 && p.damage > p.maxHit) {
+            store.incQuestObjective("swing_school", 0, 1);
+          }
         }
         break;
       }
@@ -188,6 +192,11 @@ export class GameSocket {
         const tgt = useGameStore.getState().combatTarget;
         if (tgt && tgt.entityId === p.entityId) {
           store.setCombatTarget(null);
+        }
+        // Quest: local player killed something → bump welcome objective[1].
+        const lpDeath = useGameStore.getState().localPlayer;
+        if (lpDeath && p.killerId === lpDeath.id && p.entityId !== lpDeath.id) {
+          store.incQuestObjective("welcome_to_mireholm", 1, 1);
         }
         // Mob will disappear from the next PositionDelta — no extra action.
         break;
@@ -234,6 +243,18 @@ export class GameSocket {
               text: `+1 ${display.name}`,
               color: 0xe8d090, // parchment
             });
+            // Quest: count ore mined for "Welcome to Mireholm".
+            if (p.itemDefId.startsWith("ore_")) {
+              store.incQuestObjective("welcome_to_mireholm", 0, 1);
+            }
+          }
+        }
+        // Quest: track Melee level for "Swing School".
+        if (name === "Melee") {
+          const newLevel = levelForXP(p.totalXP);
+          const obj = useGameStore.getState().quests.find((q) => q.id === "swing_school")?.objectives[1];
+          if (obj && newLevel > obj.current) {
+            store.incQuestObjective("swing_school", 1, newLevel - obj.current);
           }
         }
         break;
