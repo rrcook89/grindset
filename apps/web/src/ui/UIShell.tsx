@@ -5,6 +5,7 @@ import { WalletHud } from "./WalletHud";
 import { SkillPanel } from "./SkillPanel";
 import { Inventory } from "./Inventory";
 import { CombatHud } from "./CombatHud";
+import { PlayerHud } from "./PlayerHud";
 import { BankModal } from "./BankModal";
 import { GrandBazaar } from "./GrandBazaar";
 import { QuestLog } from "./QuestLog";
@@ -37,12 +38,15 @@ export function UIShell() {
       <div className="pointer-events-none absolute inset-0 flex flex-col">
         {/* ── Top bar ─────────────────────────────────────────── */}
         <div className="pointer-events-auto flex items-start justify-between px-4 py-3">
-          {/* Left: connection status */}
-          <div className="flex items-center gap-2">
-            <span
-              className={`inline-block h-2 w-2 rounded-full ${STATUS_COLOR[status] ?? "bg-parchment-grey"}`}
-            />
-            <span className="font-mono text-xs text-parchment-grey/60">{status}</span>
+          {/* Left: connection status + player HP */}
+          <div className="flex flex-col items-start gap-2">
+            <div className="flex items-center gap-2">
+              <span
+                className={`inline-block h-2 w-2 rounded-full ${STATUS_COLOR[status] ?? "bg-parchment-grey"}`}
+              />
+              <span className="font-mono text-xs text-parchment-grey/60">{status}</span>
+            </div>
+            <PlayerHud />
           </div>
 
           {/* Centre: Combat HUD sits absolutely, no space needed here */}
