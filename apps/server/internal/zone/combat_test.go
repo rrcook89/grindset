@@ -233,6 +233,44 @@ func TestPlayerSwingHeavyStrikeTriples(t *testing.T) {
 	}
 }
 
+func TestPlayerSwingCritAndHeavyStrikeStack(t *testing.T) {
+	z := newTestZone()
+	p, _ := z.Join("alice")
+	mob := addTestMob(z, 1_000_900, "bog_horror", 5, 5, 200, 60)
+
+	z.mu.Lock()
+	p.X = 5
+	p.Y = 5
+	p.CombatTarget = mob.ID
+	p.AttackCooldown = 0
+	p.NextSwingMul = 3 // Heavy Strike queued
+	beforeHP := mob.HP
+	z.mu.Unlock()
+
+	// Roll order in resolveCombatLocked:
+	//   1) mob miss roll        (≥15 → no miss)            → 80
+	//   2) mob damage roll      (1..maxHit for horror=22)  → 1
+	//   3) player miss roll     (≥10 → no miss)             → 99
+	//   4) player damage roll   (1..playerMaxHit=8)         → 4
+	//   5) crit roll            (<10 → CRIT, ×2)            → 5
+	// Expected damage: 4 (base) × 2 (crit) × 3 (heavy) = 24.
+	prev := SetRandSource(fixedRand(80, 1, 99, 4, 5))
+	defer SetRandSource(prev)
+
+	z.mu.Lock()
+	z.resolveCombatLocked()
+	z.mu.Unlock()
+
+	z.mu.Lock()
+	defer z.mu.Unlock()
+	if got := beforeHP - mob.HP; got != 24 {
+		t.Fatalf("crit + heavy strike stacked damage: got %d want 24", got)
+	}
+	if p.NextSwingMul != 1 {
+		t.Fatalf("NextSwingMul should reset after consume: got %d", p.NextSwingMul)
+	}
+}
+
 func TestPlayerSwingMissProduces0Damage(t *testing.T) {
 	z := newTestZone()
 	p, _ := z.Join("alice")

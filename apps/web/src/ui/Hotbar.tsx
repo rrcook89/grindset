@@ -6,6 +6,11 @@ import { sfx } from "../game/Sfx";
 
 const ABILITY_SLOTS = 5;
 
+const ABILITY_LORE: Record<string, string> = {
+  "Heavy Strike": "Your next melee swing deals 3× damage. Stacks with crits — a critted Heavy Strike against a low-tier mob is usually a one-shot.",
+  "Bandage": "Restore 5 HP instantly. Best used the moment you take a hit, not while you're still at full health.",
+};
+
 function CooldownOverlay({ cooldownMs, cooldownStart }: { cooldownMs: number; cooldownStart: number }) {
   const [remaining, setRemaining] = useState(0);
 
@@ -47,6 +52,7 @@ function CooldownOverlay({ cooldownMs, cooldownStart }: { cooldownMs: number; co
 export function Hotbar() {
   const abilities = useGameStore((s) => s.abilities);
   const triggerCooldown = useGameStore((s) => s.triggerAbilityCooldown);
+  const [hoverSlot, setHoverSlot] = useState<number | null>(null);
 
   const fireSlot = useCallback(
     (slotIndex: number) => {
@@ -77,12 +83,17 @@ export function Hotbar() {
         const ability = abilities[i];
         const hasAbility = ability && ability.id !== 0;
 
+        const lore = hasAbility ? ABILITY_LORE[ability.name] : null;
+        const cdSec = hasAbility ? Math.round(ability.cooldownMs / 1000) : 0;
+
         return (
           <button
             key={i}
             data-testid={`hotbar-slot-${i}`}
             className="relative flex h-12 w-12 items-center justify-center rounded border border-ingot-gold/20 bg-obsidian hover:border-ingot-gold/60"
             onClick={() => fireSlot(i)}
+            onMouseEnter={() => setHoverSlot(i)}
+            onMouseLeave={() => setHoverSlot((s) => (s === i ? null : s))}
             title={hasAbility ? ability.name : `Slot ${i + 1}`}
           >
             {hasAbility && (
@@ -100,6 +111,21 @@ export function Hotbar() {
             <span className="absolute bottom-0.5 right-1 font-mono text-[9px] text-parchment-grey/30">
               {i + 1}
             </span>
+            {hasAbility && hoverSlot === i && (
+              <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1 w-56 -translate-x-1/2 rounded border border-ingot-gold/40 bg-obsidian/95 px-2.5 py-1.5 text-left shadow-xl backdrop-blur-sm">
+                <div className="flex items-center justify-between text-xs font-semibold text-ingot-gold">
+                  <span>{ability.name}</span>
+                  <span className="font-mono text-[10px] text-parchment-grey/60">
+                    {cdSec}s CD · key {i + 1}
+                  </span>
+                </div>
+                {lore && (
+                  <div className="mt-1 text-[11px] leading-snug text-parchment-grey/85">
+                    {lore}
+                  </div>
+                )}
+              </div>
+            )}
           </button>
         );
       })}
