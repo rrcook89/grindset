@@ -173,7 +173,12 @@ export class Game {
       needsRender = false;
 
       const { localPlayer, otherPlayers, nodes, mobs, floats } = useGameStore.getState();
-      entityRenderer.updatePlayers(localPlayer, otherPlayers);
+      const names = new Map<number, string>();
+      if (localPlayer?.name) names.set(localPlayer.id, localPlayer.name);
+      for (const [pid, p] of otherPlayers) {
+        if (p.name) names.set(pid, p.name);
+      }
+      entityRenderer.updatePlayers(localPlayer, otherPlayers, names);
       entityRenderer.updateMobs(mobs);
       nodeRenderer.updateNodes(nodes);
       floatRenderer.update(floats);

@@ -120,7 +120,7 @@ export class GameSocket {
       case OP.WELCOME: {
         const p = decodeWelcome(buf);
         store.setConnectionStatus("connected");
-        store.setLocalPlayer({ id: p.playerId, x: p.spawnX, y: p.spawnY });
+        store.setLocalPlayer({ id: p.playerId, x: p.spawnX, y: p.spawnY, name: this.devUser });
         break;
       }
 

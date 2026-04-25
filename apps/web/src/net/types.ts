@@ -4,6 +4,7 @@ export interface Player {
   y: number;
   hp?: number;
   maxHp?: number;
+  name?: string;
 }
 
 export type ConnectionStatus = "disconnected" | "connecting" | "connected" | "error";
