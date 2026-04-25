@@ -12,6 +12,7 @@ const (
 	CombatMelee  Name = "combat_melee"
 	CombatRanged Name = "combat_ranged"
 	CombatMagic  Name = "combat_magic"
+	Smithing     Name = "smithing"
 )
 
 const MaxLevel = 20
@@ -63,7 +64,9 @@ func LevelForXP(xp int64) int {
 	return level
 }
 
-// NodeDef describes a skilling node (rock, fishing spot, tree).
+// NodeDef describes a skilling node (rock, fishing spot, tree, furnace).
+// RequiredInputs is consumed from the player's inventory on each successful
+// action — empty means a free-resource node (rocks, trees, fishing spots).
 type NodeDef struct {
 	ID             string
 	Skill          Name
@@ -71,6 +74,7 @@ type NodeDef struct {
 	OutputItemID   string // item_def_id produced
 	XPPerAction    int64
 	LevelRequired  int
+	RequiredInputs []string // item_def_ids consumed per tick
 }
 
 // Registry is the global node table. Keyed by NodeDef.ID.
@@ -109,6 +113,18 @@ var Registry = map[string]NodeDef{
 	"spot_swordfish": {
 		ID: "spot_swordfish", Skill: Fishing,
 		TicksPerAction: 12, OutputItemID: "fish_raw_swordfish", XPPerAction: 25, LevelRequired: 15,
+	},
+
+	// Smithing furnaces — consume inputs from inventory per tick.
+	"furnace_bronze": {
+		ID: "furnace_bronze", Skill: Smithing,
+		TicksPerAction: 6, OutputItemID: "bronze_bar", XPPerAction: 8, LevelRequired: 1,
+		RequiredInputs: []string{"ore_copper", "ore_coal"},
+	},
+	"furnace_iron": {
+		ID: "furnace_iron", Skill: Smithing,
+		TicksPerAction: 8, OutputItemID: "iron_bar", XPPerAction: 14, LevelRequired: 5,
+		RequiredInputs: []string{"ore_iron", "ore_coal"},
 	},
 
 	// Woodcutting trees

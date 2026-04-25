@@ -3,8 +3,8 @@ import { TILE_SIZE } from "./TileRenderer";
 
 export interface NodeEntity {
   id: number;
-  kind: "rock" | "tree" | "spot" | "bank";
-  /** Optional skill node id (rock_copper, tree_oak, …). Drives tier colour. */
+  kind: "rock" | "tree" | "spot" | "bank" | "furnace";
+  /** Optional skill node id (rock_copper, tree_oak, furnace_bronze, …). */
   defId?: string;
   x: number;
   y: number;
@@ -64,8 +64,25 @@ export class NodeRenderer {
       case "bank":
         drawBank(g);
         break;
+      case "furnace":
+        drawFurnace(g, node.defId);
+        break;
     }
   }
+}
+
+function drawFurnace(g: Graphics, defId?: string): void {
+  // Stone base
+  g.roundRect(CX - 16, CY - 4, 32, 22, 3).fill({ color: 0x4a3a2a });
+  g.roundRect(CX - 16, CY - 4, 32, 22, 3).stroke({ color: 0x2a1a0a, width: 1.5 });
+  // Hearth opening (glowing)
+  const glow = defId === "furnace_iron" ? 0xff8030 : 0xff4020;
+  g.roundRect(CX - 9, CY + 2, 18, 12, 2).fill({ color: glow });
+  g.roundRect(CX - 9, CY + 2, 18, 12, 2).stroke({ color: 0xff6020, width: 1, alpha: 0.6 });
+  // Smoke puffs above (suggested with 3 ovals)
+  g.ellipse(CX - 6, CY - 12, 5, 4).fill({ color: 0x7a7a7a, alpha: 0.5 });
+  g.ellipse(CX + 4, CY - 16, 6, 5).fill({ color: 0x9a9a9a, alpha: 0.4 });
+  g.ellipse(CX, CY - 22, 7, 4).fill({ color: 0xcacaca, alpha: 0.25 });
 }
 
 const ROCK_COLORS: Record<string, { body: number; dark: number; light: number }> = {

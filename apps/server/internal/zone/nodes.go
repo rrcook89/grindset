@@ -43,6 +43,10 @@ func (z *Zone) loadNodes() {
 		{"rock", "rock_mithril", 6, 6},
 		{"tree", "tree_yew", 44, 10},
 		{"spot", "spot_swordfish", 8, 46},
+
+		// Smithing furnaces — adjacent to the bank for an OSRS-style smelt loop.
+		{"furnace", "furnace_bronze", 28, 25},
+		{"furnace", "furnace_iron", 28, 26},
 	}
 
 	z.mu.Lock()

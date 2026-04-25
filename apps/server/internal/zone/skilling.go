@@ -20,6 +20,44 @@ var stackable = map[string]bool{
 	"bronze_bar": true, "iron_bar": true, "steel_bar": true,
 }
 
+// hasAllInputs returns true if every defID in `needed` exists in the
+// inventory with quantity ≥ 1. Doesn't consume.
+func hasAllInputs(inv *[28]protocol.InventorySlot, needed []string) bool {
+	for _, defID := range needed {
+		found := false
+		for i := range inv {
+			if inv[i].ItemDefID == defID && inv[i].Qty >= 1 {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
+}
+
+// consumeInputs removes one of each defID in `needed` from the inventory.
+// Returns the list of slot indices that changed (so they can be broadcast as
+// an InventoryDelta). Caller should already have checked hasAllInputs.
+func consumeInputs(inv *[28]protocol.InventorySlot, needed []string) []int {
+	changed := make([]int, 0, len(needed))
+	for _, defID := range needed {
+		for i := range inv {
+			if inv[i].ItemDefID == defID && inv[i].Qty >= 1 {
+				inv[i].Qty--
+				if inv[i].Qty == 0 {
+					inv[i].ItemDefID = ""
+				}
+				changed = append(changed, i)
+				break
+			}
+		}
+	}
+	return changed
+}
+
 // addInventoryItem stacks (or finds the first empty slot for) defID. Returns
 // the slot index that was modified, or -1 if inventory is full.
 func addInventoryItem(inv *[28]protocol.InventorySlot, defID string, qty uint32) int {
@@ -81,6 +119,10 @@ func (z *Zone) StartSkillAction(pid, nodeID uint32) {
 		// level too low or unknown node
 		return
 	}
+	// Recipe nodes (furnaces) require inventory inputs to even start.
+	if len(def.RequiredInputs) > 0 && !hasAllInputs(&p.Inventory, def.RequiredInputs) {
+		return
+	}
 
 	p.Action = a
 	p.ActionNodeID = nodeID
@@ -124,17 +166,49 @@ func (z *Zone) resolveSkillingLocked() {
 		if itemID == "" || xpGained == 0 {
 			continue // still in-progress
 		}
+		// Recipe nodes consume inputs from inventory on completion. If the
+		// player ran out mid-action, cancel without granting XP/output.
+		var consumedSlots []int
+		if len(def.RequiredInputs) > 0 {
+			if !hasAllInputs(&p.Inventory, def.RequiredInputs) {
+				p.Action = nil
+				p.ActionNodeID = 0
+				continue
+			}
+			consumedSlots = consumeInputs(&p.Inventory, def.RequiredInputs)
+		}
+
 		newXP := oldXP + xpGained
 		p.SkillXP[def.Skill] = newXP
 		newLevel := skills.LevelForXP(newXP)
 
 		// Roll a small $GRIND drop per the faucet rates in docs/04-tokenomics.md.
-		// Ranges in whole $GRIND, scaled to base units.
-		grindDropped := uint64(randInRange(0, 3)) * uint64(grindBaseUnit)
+		// Ranges in whole $GRIND, scaled to base units. Smithing is a recipe
+		// skill — drop is rarer to keep it from being a money printer.
+		var grindDropped uint64
+		if def.Skill == skills.Smithing {
+			grindDropped = uint64(randInRange(0, 1)) * uint64(grindBaseUnit)
+		} else {
+			grindDropped = uint64(randInRange(0, 3)) * uint64(grindBaseUnit)
+		}
 		p.GrindBalance += int64(grindDropped)
 
-		// Stack/place the item.
+		// Stack/place the produced item.
 		slotIdx := addInventoryItem(&p.Inventory, itemID, 1)
+
+		// Broadcast an InventoryDelta covering both the consumed and produced
+		// slots so the client UI stays in sync.
+		if len(consumedSlots) > 0 {
+			payload := make([]protocol.InventorySlot, 0, len(consumedSlots))
+			for _, ci := range consumedSlots {
+				payload = append(payload, p.Inventory[ci])
+			}
+			invMsg := protocol.EncodeInventoryDelta(payload)
+			select {
+			case p.Outbox <- invMsg:
+			default:
+			}
+		}
 
 		// Broadcast a SkillTick to this player's outbox.
 		tick := protocol.EncodeSkillTick(protocol.SkillTick{
@@ -208,6 +282,8 @@ func skillIndex(n skills.Name) uint8 {
 		return 4
 	case skills.CombatMagic:
 		return 5
+	case skills.Smithing:
+		return 7 // Cooking sits at 6 in the client; Smithing is 7.
 	}
 	return 255
 }

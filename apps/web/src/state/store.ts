@@ -59,6 +59,9 @@ const DEV_NODES: NodeEntity[] = [
   { id: 2_000_017, kind: "rock", defId: "rock_mithril", x: 6,  y: 6 },
   { id: 2_000_018, kind: "tree", defId: "tree_yew",     x: 44, y: 10 },
   { id: 2_000_019, kind: "spot", defId: "spot_swordfish", x: 8, y: 46 },
+  // Smithing furnaces — adjacent to the bank for OSRS-style smelt loop.
+  { id: 2_000_020, kind: "furnace", defId: "furnace_bronze", x: 28, y: 25 },
+  { id: 2_000_021, kind: "furnace", defId: "furnace_iron",   x: 28, y: 26 },
   // Bank
   { id: 2_000_100, kind: "bank", x: 26, y: 25 },
 ];
