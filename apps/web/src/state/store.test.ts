@@ -34,6 +34,31 @@ describe("incQuestObjective", () => {
     expect(q.status).toBe("complete");
   });
 
+  it("grants \$GRIND reward + system chat when a quest first completes", () => {
+    const before = useGameStore.getState();
+    const beforeBalance = before.wallet.balance;
+    const beforeEarned = before.totalGrindEarned;
+    const beforeChatLen = before.chat.length;
+
+    // Welcome quest has 3 objectives → reward = 3 × 25 = 75 \$GRIND.
+    const incr = useGameStore.getState().incQuestObjective;
+    incr("welcome_to_mireholm", 0, 999);
+    incr("welcome_to_mireholm", 1, 999);
+    incr("welcome_to_mireholm", 2, 1);
+
+    const after = useGameStore.getState();
+    const expectedReward = 75n * 1_000_000_000n;
+    expect(after.wallet.balance).toBe(beforeBalance + expectedReward);
+    expect(after.totalGrindEarned).toBe(beforeEarned + expectedReward);
+
+    // System chat line should be appended exactly once.
+    const newMessages = after.chat.slice(beforeChatLen);
+    expect(newMessages).toHaveLength(1);
+    expect(newMessages[0].senderName).toBe("system");
+    expect(newMessages[0].text).toContain("Quest complete");
+    expect(newMessages[0].text).toContain("+75");
+  });
+
   it("ignores increments on a completed quest", () => {
     const incr = useGameStore.getState().incQuestObjective;
     incr("welcome_to_mireholm", 0, 999);

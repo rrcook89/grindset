@@ -556,6 +556,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   incQuestObjective: (questId, objectiveIdx, amount) =>
     set((s) => {
+      let completedNow: { id: string; name: string } | null = null;
       const next = s.quests.map((q) => {
         if (q.id !== questId || q.status === "complete") return q;
         const objs = q.objectives.map((o, i) => {
@@ -564,8 +565,43 @@ export const useGameStore = create<GameState>((set, get) => ({
           return { ...o, current: Math.min(o.target, o.current + amount) };
         });
         const allDone = objs.every((o) => o.current >= o.target);
+        if (allDone) completedNow = { id: q.id, name: q.name };
         return { ...q, objectives: objs, status: allDone ? ("complete" as const) : q.status };
       });
+      // Grant a one-time \$GRIND reward when a quest first completes. Client-
+      // predicted; reconciles on next server-authoritative wallet broadcast.
+      // Reward scales with quest objective count (rough proxy for difficulty).
+      if (completedNow !== null) {
+        const completed: { id: string; name: string } = completedNow;
+        const finishedQuest = s.quests.find((q) => q.id === completed.id);
+        const objCount = finishedQuest?.objectives.length ?? 1;
+        const rewardWhole = objCount * 25; // 75 \$GRIND for the welcome quest, etc.
+        const rewardBase = BigInt(rewardWhole) * 1_000_000_000n;
+        const rewardLedger: LedgerEntry = {
+          id: `quest-${completed.id}-${Date.now()}`,
+          direction: "in",
+          amount: rewardBase,
+          description: "quest_reward:" + completed.id,
+          timestamp: Date.now(),
+        };
+        const sysMsg: ChatMessage = {
+          id: `quest-complete-${Date.now()}-${Math.random()}`,
+          channel: "global",
+          senderName: "system",
+          text: `★ Quest complete: ${completed.name} (+${rewardWhole} \$GRIND)`,
+          timestamp: Date.now(),
+        };
+        return {
+          quests: next,
+          wallet: {
+            ...s.wallet,
+            balance: s.wallet.balance + rewardBase,
+            ledger: [rewardLedger, ...s.wallet.ledger].slice(0, 50),
+          },
+          totalGrindEarned: s.totalGrindEarned + rewardBase,
+          chat: [...s.chat, sysMsg].slice(-200),
+        };
+      }
       return { quests: next };
     }),
 
