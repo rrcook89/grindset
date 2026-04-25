@@ -140,10 +140,15 @@ func (g *Gateway) readLoop(ctx context.Context, c *websocket.Conn, p *zone.Playe
 			if err != nil {
 				continue
 			}
-			// TargetKind=3 = vendor-sell. Anything else → use-on-self.
-			if m.TargetKind == 3 {
+			// TargetKind: 0 = use-on-self / equip / eat,
+			//             3 = vendor-sell,
+			//             4 = drop (vanish).
+			switch m.TargetKind {
+			case 3:
 				g.z.SellItem(p.ID, m.Slot)
-			} else {
+			case 4:
+				g.z.DropItem(p.ID, m.Slot)
+			default:
 				g.z.UseItem(p.ID, m.Slot)
 			}
 		case protocol.OpChatSay:

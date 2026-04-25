@@ -56,6 +56,12 @@ function sellSlot(slotIndex: number): void {
   socket?.sendRaw(encodeInventoryUse(slotIndex, 3, 0));
 }
 
+function dropSlot(slotIndex: number): void {
+  const socket = getActiveSocket();
+  // target_kind=4 → drop (item vanishes on server).
+  socket?.sendRaw(encodeInventoryUse(slotIndex, 4, 0));
+}
+
 function useSlot(slotIndex: number, item?: InventoryItem): void {
   const socket = getActiveSocket();
   socket?.sendRaw(encodeInventoryUse(slotIndex, 0, 0));
@@ -218,6 +224,8 @@ export function Inventory() {
                     useSlot(ctxMenu.item.slotIndex, ctxMenu.item);
                   } else if (action === "Sell") {
                     sellSlot(ctxMenu.item.slotIndex);
+                  } else if (action === "Drop") {
+                    dropSlot(ctxMenu.item.slotIndex);
                   } else if (action === "Examine") {
                     const defId = ctxMenu.item.name.toLowerCase().replace(/\s+/g, "_");
                     useGameStore.getState().addChatMessage({

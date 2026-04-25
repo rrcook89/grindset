@@ -108,6 +108,38 @@ func TestSellItemRejectsNonSellable(t *testing.T) {
 	}
 }
 
+func TestDropItemClearsSlot(t *testing.T) {
+	z := newTestZone()
+	p, _ := z.Join("alice")
+
+	z.mu.Lock()
+	addInventoryItem(&p.Inventory, "ore_copper", 5)
+	z.mu.Unlock()
+
+	z.DropItem(p.ID, 0)
+
+	z.mu.Lock()
+	defer z.mu.Unlock()
+	if p.Inventory[0].ItemDefID != "" || p.Inventory[0].Qty != 0 {
+		t.Fatalf("slot not cleared after drop: %+v", p.Inventory[0])
+	}
+}
+
+func TestDropItemEmptySlotIsNoOp(t *testing.T) {
+	z := newTestZone()
+	p, _ := z.Join("alice")
+
+	// No items, calling DropItem on slot 0 should not crash and not leave
+	// any unexpected outbox payload.
+	z.DropItem(p.ID, 0)
+
+	z.mu.Lock()
+	defer z.mu.Unlock()
+	if p.Inventory[0].ItemDefID != "" {
+		t.Fatalf("empty slot mutated by Drop: %+v", p.Inventory[0])
+	}
+}
+
 func TestUseItemDeadPlayerNoOp(t *testing.T) {
 	z := newTestZone()
 	p, _ := z.Join("alice")

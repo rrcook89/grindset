@@ -41,6 +41,30 @@ func foodHeal(defID string) uint16 {
 	return 0
 }
 
+// DropItem clears the inventory slot. Sprint-1 demo: drops vanish (no
+// ground-item entities yet). Broadcasts an InventoryDelta. Caller MUST NOT
+// hold z.mu.
+func (z *Zone) DropItem(pid uint32, slot uint8) {
+	z.mu.Lock()
+	defer z.mu.Unlock()
+	p, ok := z.players[pid]
+	if !ok {
+		return
+	}
+	if int(slot) >= len(p.Inventory) {
+		return
+	}
+	if p.Inventory[slot].ItemDefID == "" {
+		return
+	}
+	p.Inventory[slot] = protocol.InventorySlot{Slot: slot}
+	invMsg := protocol.EncodeInventoryDelta([]protocol.InventorySlot{p.Inventory[slot]})
+	select {
+	case p.Outbox <- invMsg:
+	default:
+	}
+}
+
 // SellItem vendors the entire stack at a fixed price. Sprint-1 demo: no NPC
 // proximity check. Removes the slot, credits $GRIND, broadcasts wallet
 // balance + a ledger entry. Caller MUST NOT hold z.mu.
