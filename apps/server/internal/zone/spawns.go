@@ -22,9 +22,16 @@ func (z *Zone) loadMobs(pool interface{ Ping() error }) {
 		{"marsh_rat", 12, 18, 8, 30, 0},
 		{"marsh_rat", 16, 22, 8, 30, 0},
 		{"marsh_rat", 28, 14, 8, 30, 0},
+		{"marsh_rat", 14, 38, 8, 30, 0},
 		{"bog_goblin", 35, 30, 20, 45, 4},
 		{"bog_goblin", 40, 35, 20, 45, 4},
+		{"bog_goblin", 8, 8, 20, 45, 4},
 		{"mire_bandit", 42, 42, 35, 60, 6},
+		{"mire_bandit", 6, 44, 35, 60, 6},
+		// Higher-tier mobs in the SE corner — late-game content to chase.
+		{"dwarf_thug", 45, 45, 60, 90, 5},
+		{"dwarf_thug", 47, 38, 60, 90, 5},
+		{"bog_horror", 48, 48, 100, 120, 8},
 	}
 
 	z.mu.Lock()

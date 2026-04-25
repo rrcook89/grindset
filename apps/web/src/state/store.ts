@@ -31,17 +31,35 @@ export interface FloatingText {
 
 // ── Dev-only stub nodes (gateway wiring will replace with server data) ────────
 // Positions relative to spawn (25,25): rocks nearby, trees NE, fishing spots S.
+// Order MUST match apps/server/internal/zone/nodes.go static seed so the
+// nodeIDBase + index alignment is stable. Bank tile is appended last with a
+// far-away id so it doesn't collide with future world nodes.
 const DEV_NODES: NodeEntity[] = [
-  { id: 2_000_000, kind: "rock", x: 22, y: 22 },
-  { id: 2_000_001, kind: "rock", x: 23, y: 23 },
-  { id: 2_000_002, kind: "rock", x: 24, y: 24 },
-  { id: 2_000_003, kind: "tree", x: 28, y: 20 },
-  { id: 2_000_004, kind: "tree", x: 30, y: 22 },
-  { id: 2_000_005, kind: "tree", x: 32, y: 24 },
-  { id: 2_000_006, kind: "spot", x: 20, y: 30 },
-  { id: 2_000_007, kind: "spot", x: 22, y: 32 },
-  { id: 2_000_008, kind: "rock", x: 21, y: 25 },
-  { id: 2_000_009, kind: "tree", x: 27, y: 27 },
+  // Starter cluster (level 1)
+  { id: 2_000_000, kind: "rock", defId: "rock_copper",  x: 22, y: 22 },
+  { id: 2_000_001, kind: "rock", defId: "rock_copper",  x: 23, y: 23 },
+  { id: 2_000_002, kind: "rock", defId: "rock_copper",  x: 21, y: 25 },
+  { id: 2_000_003, kind: "tree", defId: "tree_normal",  x: 28, y: 20 },
+  { id: 2_000_004, kind: "tree", defId: "tree_normal",  x: 30, y: 22 },
+  { id: 2_000_005, kind: "tree", defId: "tree_normal",  x: 27, y: 27 },
+  { id: 2_000_006, kind: "spot", defId: "spot_shrimp",  x: 20, y: 30 },
+  { id: 2_000_007, kind: "spot", defId: "spot_shrimp",  x: 22, y: 32 },
+  // Mid tier (level 5)
+  { id: 2_000_008, kind: "rock", defId: "rock_iron",    x: 24, y: 24 },
+  { id: 2_000_009, kind: "rock", defId: "rock_iron",    x: 18, y: 14 },
+  { id: 2_000_010, kind: "tree", defId: "tree_oak",     x: 32, y: 24 },
+  { id: 2_000_011, kind: "tree", defId: "tree_oak",     x: 35, y: 20 },
+  { id: 2_000_012, kind: "spot", defId: "spot_trout",   x: 16, y: 36 },
+  // Higher tier (level 10)
+  { id: 2_000_013, kind: "rock", defId: "rock_coal",    x: 10, y: 12 },
+  { id: 2_000_014, kind: "rock", defId: "rock_coal",    x: 12, y: 10 },
+  { id: 2_000_015, kind: "tree", defId: "tree_willow",  x: 38, y: 14 },
+  { id: 2_000_016, kind: "spot", defId: "spot_lobster", x: 10, y: 42 },
+  // End-game (level 15)
+  { id: 2_000_017, kind: "rock", defId: "rock_mithril", x: 6,  y: 6 },
+  { id: 2_000_018, kind: "tree", defId: "tree_yew",     x: 44, y: 10 },
+  { id: 2_000_019, kind: "spot", defId: "spot_swordfish", x: 8, y: 46 },
+  // Bank
   { id: 2_000_100, kind: "bank", x: 26, y: 25 },
 ];
 

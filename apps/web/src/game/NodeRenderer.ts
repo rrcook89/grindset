@@ -4,6 +4,8 @@ import { TILE_SIZE } from "./TileRenderer";
 export interface NodeEntity {
   id: number;
   kind: "rock" | "tree" | "spot" | "bank";
+  /** Optional skill node id (rock_copper, tree_oak, …). Drives tier colour. */
+  defId?: string;
   x: number;
   y: number;
 }
@@ -51,13 +53,13 @@ export class NodeRenderer {
 
     switch (node.kind) {
       case "rock":
-        drawRock(g);
+        drawRock(g, node.defId);
         break;
       case "tree":
-        drawTree(g);
+        drawTree(g, node.defId);
         break;
       case "spot":
-        drawSpot(g);
+        drawSpot(g, node.defId);
         break;
       case "bank":
         drawBank(g);
@@ -66,24 +68,40 @@ export class NodeRenderer {
   }
 }
 
-function drawRock(g: Graphics): void {
-  // Main rock body — earthy brown
-  g.ellipse(CX, CY + 4, 18, 13).fill({ color: 0x7a5c3a });
-  // Darker spot top-left
-  g.ellipse(CX - 6, CY, 6, 5).fill({ color: 0x5a3e20 });
-  // Lighter highlight top-right
-  g.ellipse(CX + 5, CY - 2, 5, 4).fill({ color: 0x9a7a50 });
-  // Outline
+const ROCK_COLORS: Record<string, { body: number; dark: number; light: number }> = {
+  rock_copper:  { body: 0x7a5c3a, dark: 0x5a3e20, light: 0xb87333 },
+  rock_iron:    { body: 0x6a6a6a, dark: 0x444444, light: 0x9a9a9a },
+  rock_coal:    { body: 0x2a2a2a, dark: 0x111111, light: 0x4a4a4a },
+  rock_mithril: { body: 0x4a6c8c, dark: 0x2a4060, light: 0x7aa0c0 },
+};
+const TREE_COLORS: Record<string, { canopy: number; light: number }> = {
+  tree_normal: { canopy: 0x2d5a1b, light: 0x3d7a25 },
+  tree_oak:    { canopy: 0x355030, light: 0x556a40 },
+  tree_willow: { canopy: 0x6a8c3a, light: 0x8aac5a },
+  tree_yew:    { canopy: 0x1a3a2a, light: 0x2a5a40 },
+};
+const SPOT_COLORS: Record<string, { mid: number; centre: number }> = {
+  spot_shrimp:    { mid: 0x2590cc, centre: 0x5ac8f5 },
+  spot_trout:     { mid: 0x3a8090, centre: 0x80b8c8 },
+  spot_lobster:   { mid: 0xcc4040, centre: 0xf08080 },
+  spot_swordfish: { mid: 0x404090, centre: 0x80a0d0 },
+};
+
+function drawRock(g: Graphics, defId?: string): void {
+  const c = ROCK_COLORS[defId ?? "rock_copper"] ?? ROCK_COLORS.rock_copper;
+  g.ellipse(CX, CY + 4, 18, 13).fill({ color: c.body });
+  g.ellipse(CX - 6, CY, 6, 5).fill({ color: c.dark });
+  g.ellipse(CX + 5, CY - 2, 5, 4).fill({ color: c.light });
   g.ellipse(CX, CY + 4, 18, 13).stroke({ color: 0x3d2a10, width: 1.5 });
 }
 
-function drawTree(g: Graphics): void {
+function drawTree(g: Graphics, defId?: string): void {
+  const c = TREE_COLORS[defId ?? "tree_normal"] ?? TREE_COLORS.tree_normal;
   // Trunk — brown rect
   g.rect(CX - 4, CY + 4, 8, 16).fill({ color: 0x6b3a1f });
-  // Canopy — dark green circle
-  g.circle(CX, CY - 4, 18).fill({ color: 0x2d5a1b });
-  // Lighter inner canopy highlight
-  g.circle(CX - 4, CY - 8, 9).fill({ color: 0x3d7a25 });
+  // Canopy
+  g.circle(CX, CY - 4, 18).fill({ color: c.canopy });
+  g.circle(CX - 4, CY - 8, 9).fill({ color: c.light });
   // Outline
   g.circle(CX, CY - 4, 18).stroke({ color: 0x1a3a0f, width: 1.5 });
 }
@@ -105,13 +123,10 @@ function drawBank(g: Graphics): void {
   g.circle(CX, CY - 22, 7).fill({ color: 0xf5c14b, alpha: 0.85 });
 }
 
-function drawSpot(g: Graphics): void {
-  // Outer ripple
+function drawSpot(g: Graphics, defId?: string): void {
+  const c = SPOT_COLORS[defId ?? "spot_shrimp"] ?? SPOT_COLORS.spot_shrimp;
   g.circle(CX, CY, 18).fill({ color: 0x1a6e9f, alpha: 0.5 });
-  // Mid ripple
-  g.circle(CX, CY, 12).fill({ color: 0x2590cc, alpha: 0.7 });
-  // Centre glint
-  g.circle(CX, CY, 6).fill({ color: 0x5ac8f5 });
-  // Subtle outline
+  g.circle(CX, CY, 12).fill({ color: c.mid, alpha: 0.7 });
+  g.circle(CX, CY, 6).fill({ color: c.centre });
   g.circle(CX, CY, 18).stroke({ color: 0x0d4f7a, width: 1.5 });
 }
