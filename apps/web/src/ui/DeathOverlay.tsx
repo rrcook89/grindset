@@ -5,6 +5,7 @@ const FADE_MS = 1800;
 
 export function DeathOverlay() {
   const lp = useGameStore((s) => s.localPlayer);
+  const lastDeath = useGameStore((s) => s.lastDeath);
   const [diedAt, setDiedAt] = useState<number | null>(null);
 
   useEffect(() => {
@@ -34,6 +35,11 @@ export function DeathOverlay() {
         <div className="text-6xl font-bold text-loss-red drop-shadow-[0_0_20px_rgba(224,69,69,0.8)]">
           You Died
         </div>
+        {lastDeath && diedAt && lastDeath.at >= diedAt - 500 && (
+          <div className="mt-2 font-mono text-xs uppercase tracking-widest text-parchment-grey/50">
+            slain by a {lastDeath.killerName}
+          </div>
+        )}
         <div className="mt-3 font-mono text-sm uppercase tracking-widest text-parchment-grey/70">
           Respawning…
         </div>

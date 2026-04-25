@@ -222,6 +222,20 @@ export class GameSocket {
         }
         if (lpDeath && p.entityId === lpDeath.id) {
           sfx.death();
+          // Identify the killer for the DeathOverlay. We look it up in the
+          // current mobs map; the mob still exists at this instant because
+          // killMobLocked / killPlayerLocked are independent paths.
+          const killerMob = useGameStore.getState().mobs.get(p.killerId);
+          let killerName = "the wilds";
+          if (killerMob) {
+            const mh = killerMob.maxHp;
+            if (mh >= 100) killerName = "Bog Horror";
+            else if (mh >= 60) killerName = "Dwarf Thug";
+            else if (mh >= 30) killerName = "Bandit";
+            else if (mh >= 15) killerName = "Goblin";
+            else killerName = "Marsh Rat";
+          }
+          store.setLastDeath(killerName);
         }
         // Mob will disappear from the next PositionDelta — no extra action.
         break;

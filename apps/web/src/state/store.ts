@@ -227,6 +227,9 @@ interface GameState {
   // Last swing animation event — purely visual.
   lastSwing: { attackerId: number; targetId: number; damage: number; born: number } | null;
 
+  // Last death the local player suffered, used by DeathOverlay.
+  lastDeath: { killerName: string; at: number } | null;
+
   // Currently-equipped weapon defID (client-side prediction; server is
   // authoritative for damage rolls). null = unarmed.
   equippedWeapon: string | null;
@@ -260,6 +263,7 @@ interface GameState {
   setSkillTarget: (id: number | null) => void;
   triggerSwing: (attackerId: number, targetId: number, damage: number) => void;
   recordKill: () => void;
+  setLastDeath: (killerName: string) => void;
   setEquippedWeapon: (defID: string | null) => void;
 
   // Skills
@@ -318,6 +322,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   floats: [],
   skillTargetId: null,
   lastSwing: null,
+  lastDeath: null,
   sessionStart: Date.now(),
   totalKills: loadPersisted()?.totalKills ?? 0,
   totalGrindEarned: BigInt(loadPersisted()?.totalGrindEarned ?? "0"),
@@ -468,6 +473,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ lastSwing: { attackerId, targetId, damage, born: Date.now() } }),
 
   recordKill: () => set((s) => ({ totalKills: s.totalKills + 1 })),
+
+  setLastDeath: (killerName) =>
+    set({ lastDeath: { killerName, at: Date.now() } }),
 
   setEquippedWeapon: (defID) => set({ equippedWeapon: defID }),
 
