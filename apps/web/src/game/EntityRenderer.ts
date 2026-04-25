@@ -39,6 +39,8 @@ export interface MobEntity {
 
 interface SpriteEntry {
   g: Graphics;
+  /** Soft drop shadow that sells the iso depth — drawn under the sprite. */
+  shadow: Graphics;
   hpBar: Graphics;
   /** Optional name label drawn above the HP bar. */
   label: Text | null;
@@ -148,12 +150,19 @@ export class EntityRenderer {
         entry.label.y = baseY + bob + ly - 14;
       }
 
+      // Shadow stays glued to the feet — bottom-centre of the sprite box.
+      // No bob applied so the shadow's the reference frame for the bob.
+      entry.shadow.x = baseX + lx + SPRITE_W / 2;
+      entry.shadow.y = baseY + ly + SPRITE_H;
+
       // Iso depth: prefer the lerp's CURRENT tile (round to nearest).
       const liveCol = Math.round(entry.prevTileX);
       const liveRow = Math.round(entry.prevTileY);
-      entry.g.zIndex = tileDepth(liveCol, liveRow) * 10;
-      entry.hpBar.zIndex = entry.g.zIndex + 1;
-      if (entry.label) entry.label.zIndex = entry.g.zIndex + 2;
+      const baseZ = tileDepth(liveCol, liveRow) * 10;
+      entry.shadow.zIndex = baseZ - 1;
+      entry.g.zIndex = baseZ;
+      entry.hpBar.zIndex = baseZ + 1;
+      if (entry.label) entry.label.zIndex = baseZ + 2;
     }
   }
 
@@ -189,12 +198,14 @@ export class EntityRenderer {
       if (!seen.has(id)) {
         this.container.removeChild(entry.g);
         this.container.removeChild(entry.hpBar);
+        this.container.removeChild(entry.shadow);
         if (entry.label) {
           this.container.removeChild(entry.label);
           entry.label.destroy();
         }
         entry.g.destroy();
         entry.hpBar.destroy();
+        entry.shadow.destroy();
         this.sprites.delete(id);
       }
     }
@@ -205,8 +216,12 @@ export class EntityRenderer {
     if (!entry) {
       const g = new Graphics();
       const hpBar = new Graphics();
+      const shadow = new Graphics();
+      // Pre-draw shadow once — it's a static ellipse re-positioned per frame.
+      shadow.ellipse(0, 0, 22, 7).fill({ color: 0x000000, alpha: 0.35 });
       entry = {
         g,
+        shadow,
         hpBar,
         label: null,
         srcPxX: initialPx.x,
@@ -218,6 +233,10 @@ export class EntityRenderer {
         prevTileY: -1,
       };
       this.sprites.set(id, entry);
+      // Add in render-order: shadow → hpBar → g (so shadow stays under feet,
+      // sprite paints over HP bar at its base only because hpBar zIndex is
+      // also bumped in tick()).
+      this.container.addChild(shadow);
       this.container.addChild(hpBar);
       this.container.addChild(g);
     }
