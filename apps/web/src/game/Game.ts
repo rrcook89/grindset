@@ -9,6 +9,7 @@ import { TargetHighlightRenderer, type HighlightTarget } from "./TargetHighlight
 import { AmbientParticles } from "./AmbientParticles";
 import { DecorationRenderer } from "./DecorationRenderer";
 import { WaterRipples } from "./WaterRipples";
+import { FireFlicker } from "./FireFlicker";
 import { Input } from "./Input";
 import type { GameSocket } from "../net/Socket";
 import { useGameStore } from "../state/store";
@@ -116,6 +117,10 @@ export class Game {
     const ripples = new WaterRipples();
     worldContainer.addChild(ripples.container);
 
+    // Animated flames overlay firepit + furnace nodes.
+    const fires = new FireFlicker();
+    worldContainer.addChild(fires.container);
+
     const entityRenderer = new EntityRenderer();
     worldContainer.addChild(entityRenderer.container);
 
@@ -170,6 +175,7 @@ export class Game {
       floatRenderer.tick();
       ambient.tick();
       ripples.tick();
+      fires.tick();
 
       // Target highlight rings — recompute every frame so they pulse
       // and follow moving mobs.
@@ -229,6 +235,7 @@ export class Game {
       entityRenderer.updateMobs(mobs);
       nodeRenderer.updateNodes(nodes);
       ripples.syncSpots(nodes);
+      fires.syncFires(nodes);
       floatRenderer.update(floats);
 
       // Build decorations once we have a node set to avoid them.

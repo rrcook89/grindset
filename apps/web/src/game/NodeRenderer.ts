@@ -106,28 +106,7 @@ function drawFirepit(g: Graphics): void {
     CX + 11, CY + 5,
     CX - 11, CY + 1,
   ]).fill({ color: 0x4a2a10 });
-  // Flames — layered teardrops with hot core
-  g.poly([
-    CX, CY - 14,
-    CX + 6, CY - 4,
-    CX, CY,
-    CX - 6, CY - 4,
-  ]).fill({ color: 0xff4020 });
-  g.poly([
-    CX, CY - 10,
-    CX + 4, CY - 4,
-    CX, CY - 2,
-    CX - 4, CY - 4,
-  ]).fill({ color: 0xff8030 });
-  g.poly([
-    CX, CY - 8,
-    CX + 2, CY - 4,
-    CX, CY - 4,
-    CX - 2, CY - 4,
-  ]).fill({ color: 0xffd060 });
-  // Sparks
-  g.circle(CX - 4, CY - 12, 0.8).fill({ color: 0xffe060, alpha: 0.9 });
-  g.circle(CX + 5, CY - 16, 0.7).fill({ color: 0xffe060, alpha: 0.7 });
+  // Flames are drawn by FireFlicker on its own animated layer.
 }
 
 function drawFurnace(g: Graphics, defId?: string): void {
@@ -164,8 +143,7 @@ function drawFurnace(g: Graphics, defId?: string): void {
   g.roundRect(CX - 10, CY + 2, 14, 10, 2).fill({ color: 0x100404 });
   g.roundRect(CX - 9, CY + 3, 12, 8, 2).fill({ color: glow });
   g.roundRect(CX - 9, CY + 3, 12, 8, 2).stroke({ color: glowEdge, width: 1.2 });
-  // Inner flame core
-  g.ellipse(CX - 3, CY + 7, 3, 3).fill({ color: 0xffe060, alpha: 0.85 });
+  // Animated ember/flame is rendered by FireFlicker on its own layer.
   // Smoke plume rising from chimney
   g.ellipse(CX + 4, CY - 16, 5, 4).fill({ color: 0x7a7a7a, alpha: 0.55 });
   g.ellipse(CX - 2, CY - 22, 6, 4).fill({ color: 0x9a9a9a, alpha: 0.4 });
