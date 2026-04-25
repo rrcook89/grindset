@@ -158,15 +158,27 @@ export class EntityRenderer {
       // Hurt shake: defender oscillates briefly. Damped sine so it
       // settles smoothly. Independent of lunge so a counter-attacking
       // mob can lunge AND shake (took a hit, now retaliating).
+      // The same window also drives a red-flash tint on the sprite.
       let sx = 0;
       if (entry.hurtAt > 0) {
         const ht = (now - entry.hurtAt) / HURT_SHAKE_DURATION_MS;
         if (ht >= 1) {
           entry.hurtAt = 0;
+          entry.g.tint = 0xffffff;
         } else {
           // 4 cycles in 1 unit; amplitude decays linearly.
           sx = Math.sin(ht * Math.PI * 8) * HURT_SHAKE_AMPLITUDE_PX * (1 - ht);
+          // Red flash that fades back to neutral white. RGB channels
+          // each lerp from a hot red toward 0xff so the tint multiplier
+          // pushes everything red at t=0 and back to identity at t=1.
+          const lerp = (a: number, b: number, t: number) => Math.round(a + (b - a) * t);
+          const r = 0xff;
+          const gC = lerp(0x60, 0xff, ht);
+          const bC = lerp(0x60, 0xff, ht);
+          entry.g.tint = (r << 16) | (gC << 8) | bC;
         }
+      } else if (entry.g.tint !== 0xffffff) {
+        entry.g.tint = 0xffffff;
       }
 
       // Mirror the sprite around its centre when facing screen-left.
