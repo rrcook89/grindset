@@ -5,6 +5,51 @@ import { getActiveSocket } from "../net/Socket";
 import { encodeInventoryUse } from "../net/protocol";
 import { isWeapon, weaponBonus, itemSellPrice } from "../net/itemDefs";
 
+const FOOD_HEAL: Record<string, number> = {
+  fish_cooked_shrimp: 3,
+  fish_cooked_trout: 7,
+  fish_cooked_lobster: 12,
+  fish_cooked_swordfish: 18,
+};
+
+const ITEM_LORE: Record<string, string> = {
+  ore_copper: "A chunk of soft, red-streaked rock. Smelts into bronze.",
+  ore_iron: "Heavy and cold. Iron's the backbone of every blade.",
+  ore_coal: "Dark and dusty. Burns hot — every furnace wants it.",
+  ore_mithril: "A faint blue gleam. Lighter than iron, harder than steel.",
+  log_normal: "A common log. Always useful.",
+  log_oak: "Solid oak. Heavier than it looks.",
+  log_willow: "Pliable and quick to burn.",
+  log_yew: "Aged and resilient. Bowyers prize it.",
+  fish_raw_shrimp: "A raw shrimp. Cook it before you eat it.",
+  fish_raw_trout: "A raw trout. Better cooked.",
+  fish_raw_lobster: "A raw lobster. Cook it well.",
+  fish_raw_swordfish: "A raw swordfish. Don't eat it raw.",
+  rat_tail: "A fresh rat tail. Some collector wants these.",
+  goblin_ear: "A goblin's ear. The eastern vendor pays fair coin.",
+  coin_pouch: "A bandit's coin pouch — heavier than expected.",
+  dwarven_shard: "A shard of dwarven plate. Salvageable.",
+  bog_essence: "A glowing essence pulled from the bog horror's heart.",
+  bronze_dagger: "A bronze dagger. +2 max hit when wielded.",
+  iron_axe: "A sturdy iron axe. +4 max hit when wielded.",
+  steel_sword: "A keen steel sword. +6 max hit when wielded.",
+  bronze_bar: "A bronze bar. Smith it into something useful.",
+  iron_bar: "An iron bar. Foundation of the warrior's kit.",
+};
+
+function describeItem(defId: string, name: string): string {
+  const lore = ITEM_LORE[defId];
+  const heal = FOOD_HEAL[defId];
+  const wpn = weaponBonus(defId);
+  const sell = itemSellPrice(defId);
+  const stats: string[] = [];
+  if (heal) stats.push(`heal +${heal} HP`);
+  if (wpn) stats.push(`+${wpn} max hit`);
+  if (sell) stats.push(`sells ${sell} \$GRIND`);
+  const head = lore ?? `A ${name.toLowerCase()}.`;
+  return stats.length > 0 ? `${head} (${stats.join(", ")})` : head;
+}
+
 function sellSlot(slotIndex: number): void {
   const socket = getActiveSocket();
   // target_kind=3 → vendor-sell on the server side.
@@ -173,6 +218,15 @@ export function Inventory() {
                     useSlot(ctxMenu.item.slotIndex, ctxMenu.item);
                   } else if (action === "Sell") {
                     sellSlot(ctxMenu.item.slotIndex);
+                  } else if (action === "Examine") {
+                    const defId = ctxMenu.item.name.toLowerCase().replace(/\s+/g, "_");
+                    useGameStore.getState().addChatMessage({
+                      id: `examine-${Date.now()}-${Math.random()}`,
+                      channel: useGameStore.getState().chatChannel,
+                      senderName: "system",
+                      text: describeItem(defId, ctxMenu.item.name),
+                      timestamp: Date.now(),
+                    });
                   }
                   setCtxMenu(null);
                 }}
