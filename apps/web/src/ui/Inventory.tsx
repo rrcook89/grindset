@@ -100,6 +100,13 @@ function ItemSlot({
   onContextMenu: (e: React.MouseEvent, item: InventoryItem) => void;
 }) {
   const [dragOver, setDragOver] = useState(false);
+  const [hover, setHover] = useState(false);
+
+  const tooltipDefId = item
+    ? item.name.toLowerCase().replace(/\s+/g, "_")
+    : "";
+  const tooltipText = item ? describeItem(tooltipDefId, item.name) : "";
+  const sellPrice = item ? itemSellPrice(tooltipDefId) : 0;
 
   return (
     <div
@@ -120,6 +127,8 @@ function ItemSlot({
         setDragOver(false);
         onDrop(slotIndex);
       }}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
     >
       {item ? (
         <div
@@ -138,6 +147,25 @@ function ItemSlot({
           )}
         </div>
       ) : null}
+
+      {item && hover && (
+        <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1 w-56 -translate-x-1/2 rounded border border-ingot-gold/40 bg-obsidian/95 px-2.5 py-1.5 shadow-xl backdrop-blur-sm">
+          <div className="flex items-center justify-between text-xs font-semibold text-ingot-gold">
+            <span>{item.name}</span>
+            {item.quantity > 1 && (
+              <span className="font-mono text-parchment-grey/60">×{item.quantity}</span>
+            )}
+          </div>
+          <div className="mt-1 text-[11px] leading-snug text-parchment-grey/85">
+            {tooltipText}
+          </div>
+          {sellPrice > 0 && (
+            <div className="mt-1 font-mono text-[10px] text-ingot-gold/70">
+              vendor: {sellPrice} \$GRIND each
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
