@@ -3,14 +3,14 @@ import {
   OP,
   encodeAttackIntent,
   encodeAbilityUse,
-  encodeSkillAction,
+  encodeSkillStart,
   encodeBankDeposit,
   encodeBankWithdraw,
   encodeChatSend,
   encodeGEOrderCancel,
   decodeCombatUpdate,
   decodeHitSplat,
-  decodeSkillUpdate,
+  decodeSkillTick,
   decodeInventoryDelta,
   decodeChatMessage,
   decodeWalletBalance,
@@ -60,15 +60,15 @@ describe("encodeAbilityUse", () => {
   });
 });
 
-// ── encodeSkillAction (0x52) ──────────────────────────────────────────────────
+// ── encodeSkillStart (0x50) ──────────────────────────────────────────────────
 
-describe("encodeSkillAction", () => {
+describe("encodeSkillStart", () => {
   it("writes correct opcode", () => {
-    expect(encodeSkillAction(42)[0]).toBe(OP.SKILL_ACTION);
+    expect(encodeSkillStart(42)[0]).toBe(OP.SKILL_START);
   });
 
   it("round-trips node_id", () => {
-    const frame = encodeSkillAction(12345);
+    const frame = encodeSkillStart(12345);
     expect(new DataView(frame.buffer).getUint32(4, true)).toBe(12345);
   });
 });
@@ -210,37 +210,40 @@ describe("decodeHitSplat", () => {
   });
 });
 
-// ── decodeSkillUpdate (0x50) ─────────────────────────────────────────────────
+// ── decodeSkillTick (0x51) ───────────────────────────────────────────────────
 
-function makeSkillUpdate(opcode: number, skillId: number, level: number, xp: number, xpToNext: number): ArrayBuffer {
-  const buf = new ArrayBuffer(4 + 1 + 1 + 4 + 4);
+function makeSkillTick(skillId: number, xpGained: number, totalXP: number, grindDropped: bigint, itemDefId: string): ArrayBuffer {
+  const enc = new TextEncoder();
+  const idBytes = enc.encode(itemDefId);
+  const payloadLen = 1 + 2 + 4 + 8 + 1 + idBytes.byteLength;
+  const buf = new ArrayBuffer(4 + payloadLen);
   const v = new DataView(buf);
-  v.setUint8(0, opcode);
+  v.setUint8(0, OP.SKILL_TICK);
   v.setUint8(1, 0);
-  v.setUint16(2, 10, true);
+  v.setUint16(2, payloadLen, true);
   v.setUint8(4, skillId);
-  v.setUint8(5, level);
-  v.setUint32(6, xp, true);
-  v.setUint32(10, xpToNext, true);
+  v.setUint16(5, xpGained, true);
+  v.setUint32(7, totalXP, true);
+  v.setUint32(11, Number(grindDropped & 0xffffffffn), true);
+  v.setUint32(15, Number(grindDropped >> 32n), true);
+  v.setUint8(19, idBytes.byteLength);
+  new Uint8Array(buf, 20, idBytes.byteLength).set(idBytes);
   return buf;
 }
 
-describe("decodeSkillUpdate", () => {
-  it("decodes SKILL_UPDATE fields", () => {
-    const buf = makeSkillUpdate(OP.SKILL_UPDATE, 0, 10, 1000, 1500);
-    const p = decodeSkillUpdate(buf);
-    expect(p).toEqual({ skillId: 0, level: 10, xp: 1000, xpToNextLevel: 1500 });
-  });
-
-  it("decodes SKILL_LEVEL_UP (same layout)", () => {
-    const buf = makeSkillUpdate(OP.SKILL_LEVEL_UP, 3, 25, 9999, 12000);
-    expect(decodeSkillUpdate(buf).skillId).toBe(3);
-    expect(decodeSkillUpdate(buf).level).toBe(25);
+describe("decodeSkillTick", () => {
+  it("decodes SKILL_TICK fields", () => {
+    const buf = makeSkillTick(0, 5, 1000, 0n, "ore_copper");
+    const p = decodeSkillTick(buf);
+    expect(p.skillId).toBe(0);
+    expect(p.xpGained).toBe(5);
+    expect(p.totalXP).toBe(1000);
+    expect(p.grindDropped).toBe(0n);
+    expect(p.itemDefId).toBe("ore_copper");
   });
 
   it("readOpcode returns correct opcode", () => {
-    expect(readOpcode(makeSkillUpdate(OP.SKILL_UPDATE, 0, 1, 0, 0))).toBe(OP.SKILL_UPDATE);
-    expect(readOpcode(makeSkillUpdate(OP.SKILL_LEVEL_UP, 0, 1, 0, 0))).toBe(OP.SKILL_LEVEL_UP);
+    expect(readOpcode(makeSkillTick(0, 1, 0, 0n, ""))).toBe(OP.SKILL_TICK);
   });
 });
 

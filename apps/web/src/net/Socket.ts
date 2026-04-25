@@ -6,7 +6,8 @@ import {
   decodeError,
   decodeCombatUpdate,
   decodeHitSplat,
-  decodeSkillUpdate,
+  decodeSkillTick,
+  decodeSkillLevelUp,
   decodeInventoryDelta,
   decodeChatMessage,
   decodeWalletBalance,
@@ -33,6 +34,24 @@ const SKILL_NAMES = [
 ] as const;
 
 const CHAT_CHANNELS: ChatChannel[] = ["global", "zone", "guild", "trade"];
+
+// Mirrors the server XP curve in apps/server/internal/skills/skills.go
+const XP_TABLE: number[] = [
+  0, 80, 230, 530, 1100, 1750, 2540, 3410, 4400, 5500,
+  6900, 8650, 10750, 13300, 16500, 20200, 24600, 29700, 35500, 42000,
+];
+
+function xpForLevel(n: number): number {
+  if (n <= 1) return 0;
+  if (n > 20) return XP_TABLE[19];
+  return XP_TABLE[n - 1];
+}
+
+function levelForXP(xp: number): number {
+  let lvl = 1;
+  while (lvl < 20 && XP_TABLE[lvl] <= xp) lvl++;
+  return lvl;
+}
 
 export class GameSocket {
   private ws: WebSocket | null = null;
@@ -122,22 +141,28 @@ export class GameSocket {
         break;
       }
 
-      case OP.SKILL_UPDATE: {
-        const p = decodeSkillUpdate(buf);
+      case OP.SKILL_TICK: {
+        const p = decodeSkillTick(buf);
         const name = SKILL_NAMES[p.skillId];
         if (name) {
-          const skill: Skill = { name, level: p.level, xp: p.xp, xpToNextLevel: p.xpToNextLevel };
+          const level = levelForXP(p.totalXP);
+          const skill: Skill = {
+            name,
+            level,
+            xp: p.totalXP,
+            xpToNextLevel: xpForLevel(level + 1) - p.totalXP,
+          };
           store.applySkillUpdate(skill);
+          // eslint-disable-next-line no-console
+          console.log(`[GRINDSET] +${p.xpGained} ${name} XP — got ${p.itemDefId}`);
         }
         break;
       }
 
       case OP.SKILL_LEVEL_UP: {
-        const p = decodeSkillUpdate(buf);
+        const p = decodeSkillLevelUp(buf);
         const name = SKILL_NAMES[p.skillId];
         if (name) {
-          const skill: Skill = { name, level: p.level, xp: p.xp, xpToNextLevel: p.xpToNextLevel };
-          store.applySkillUpdate(skill);
           store.setLevelUpFlash(name);
           setTimeout(() => store.setLevelUpFlash(null), 3000);
         }

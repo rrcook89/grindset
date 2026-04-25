@@ -20,10 +20,11 @@ export const OP = {
   COMBAT_END: 0x33,
   ABILITY_USE: 0x34,
 
-  // Skilling  0x50–0x6F
-  SKILL_UPDATE: 0x50,
-  SKILL_LEVEL_UP: 0x51,
-  SKILL_ACTION: 0x52,
+  // Skilling  0x50–0x6F  — aligned to server opcodes.go
+  SKILL_START: 0x50,    // C→S: start skilling on node_id
+  SKILL_TICK: 0x51,     // S→C: action completed, here's your XP + item
+  SKILL_STOP: 0x52,     // C→S: stop skilling
+  SKILL_LEVEL_UP: 0x53, // S→C: ding
 
   // Inventory / trade  0x70–0x8F
   INVENTORY_FULL: 0x70,
@@ -109,11 +110,18 @@ export function encodeAbilityUse(slotIndex: number): Uint8Array {
   return new Uint8Array(buf);
 }
 
-/** 0x52 SkillAction — start a skilling action on a node */
-export function encodeSkillAction(nodeId: number): Uint8Array {
+/** 0x50 SkillStart — start a skilling action on a node */
+export function encodeSkillStart(nodeId: number): Uint8Array {
   const { buf, view } = alloc(4); // node_id:u32
-  writeHeader(view, OP.SKILL_ACTION, 4);
+  writeHeader(view, OP.SKILL_START, 4);
   view.setUint32(4, nodeId, true);
+  return new Uint8Array(buf);
+}
+
+/** 0x52 SkillStop — stop the active skilling action (no payload) */
+export function encodeSkillStop(): Uint8Array {
+  const { buf, view } = alloc(0);
+  writeHeader(view, OP.SKILL_STOP, 0);
   return new Uint8Array(buf);
 }
 
@@ -271,24 +279,42 @@ export function decodeHitSplat(buf: ArrayBuffer): HitSplatPayload {
   };
 }
 
-export interface SkillUpdatePayload {
+export interface SkillTickPayload {
   skillId: number; // index into SKILL_NAMES
-  level: number;
-  xp: number;
-  xpToNextLevel: number;
+  xpGained: number;
+  totalXP: number;
+  grindDropped: bigint; // base units (9 decimals)
+  itemDefId: string; // empty if no item awarded
 }
 
 /**
- * 0x50 SkillUpdate / 0x51 SkillLevelUp payload (after header):
- * skill_id:u8, level:u8, xp:u32, xp_to_next:u32
+ * 0x51 SkillTick payload (after header):
+ * skill:u8, xp_gained:u16, total_xp:u32, grind_dropped:u64, item_def_id_len:u8, item_def_id_utf8
  */
-export function decodeSkillUpdate(buf: ArrayBuffer): SkillUpdatePayload {
+export function decodeSkillTick(buf: ArrayBuffer): SkillTickPayload {
+  const view = new DataView(buf);
+  const skillId = view.getUint8(4);
+  const xpGained = view.getUint16(5, true);
+  const totalXP = view.getUint32(7, true);
+  const lo = view.getUint32(11, true);
+  const hi = view.getUint32(15, true);
+  const grindDropped = (BigInt(hi) << 32n) | BigInt(lo);
+  const idLen = view.getUint8(19);
+  const itemDefId = decodeString(buf, 20, idLen);
+  return { skillId, xpGained, totalXP, grindDropped, itemDefId };
+}
+
+export interface SkillLevelUpPayload {
+  skillId: number;
+  newLevel: number;
+}
+
+/** 0x53 SkillLevelUp payload (after header): skill:u8, new_level:u8 */
+export function decodeSkillLevelUp(buf: ArrayBuffer): SkillLevelUpPayload {
   const view = new DataView(buf);
   return {
     skillId: view.getUint8(4),
-    level: view.getUint8(5),
-    xp: view.getUint32(6, true),
-    xpToNextLevel: view.getUint32(10, true),
+    newLevel: view.getUint8(5),
   };
 }
 

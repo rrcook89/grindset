@@ -103,6 +103,14 @@ func (g *Gateway) readLoop(ctx context.Context, c *websocket.Conn, p *zone.Playe
 				continue
 			}
 			g.z.QueueMove(p.ID, m.X, m.Y)
+		case protocol.OpSkillStart:
+			m, err := protocol.DecodeSkillStart(frame.Payload)
+			if err != nil {
+				continue
+			}
+			g.z.StartSkillAction(p.ID, m.NodeID)
+		case protocol.OpSkillStop:
+			g.z.StopSkillAction(p.ID)
 		case protocol.OpChatSay:
 			m, err := protocol.DecodeChatSay(frame.Payload)
 			if err != nil || m.Body == "" {

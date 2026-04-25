@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/grindset/server/internal/protocol"
+	"github.com/grindset/server/internal/skills"
 )
 
 const (
@@ -39,6 +40,16 @@ type Player struct {
 	TargetY uint16
 	Outbox  chan []byte
 	hasMove bool
+
+	// Skilling state. Nil when idle.
+	Action *skills.ActiveAction
+	// Cached node position so the tick can verify the player is on it.
+	ActionNodeID uint32
+	ActionNodeX  uint16
+	ActionNodeY  uint16
+
+	// In-memory totals (DB persistence is a later sprint).
+	SkillXP map[skills.Name]int64
 }
 
 type intent struct {
@@ -91,6 +102,7 @@ func (z *Zone) Join(name string) (*Player, protocol.Welcome) {
 		TargetX: spawnX,
 		TargetY: spawnY,
 		Outbox:  make(chan []byte, 64),
+		SkillXP: map[skills.Name]int64{},
 	}
 	z.players[id] = p
 	z.byName[name] = id

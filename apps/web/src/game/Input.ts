@@ -1,7 +1,8 @@
 import type { FederatedPointerEvent, Ticker } from "pixi.js";
 import { Graphics, Container } from "pixi.js";
-import { encodeMoveIntent } from "../net/protocol";
+import { encodeMoveIntent, encodeSkillStart } from "../net/protocol";
 import type { GameSocket } from "../net/Socket";
+import { useGameStore } from "../state/store";
 import { TILE_SIZE } from "./TileRenderer";
 
 const MARKER_COLOR = 0xe04545; // GRINDSET loss-red
@@ -32,7 +33,22 @@ export class Input {
 
     if (tileX < 0 || tileY < 0) return;
 
-    this.socket.sendRaw(encodeMoveIntent(tileX, tileY));
+    // If the clicked tile contains a skilling node, start mining/fishing/etc.
+    // Otherwise fall back to walking there.
+    const { nodes } = useGameStore.getState();
+    let nodeAtTile: { id: number } | null = null;
+    for (const node of nodes.values()) {
+      if (node.x === tileX && node.y === tileY) {
+        nodeAtTile = { id: node.id };
+        break;
+      }
+    }
+
+    if (nodeAtTile) {
+      this.socket.sendRaw(encodeSkillStart(nodeAtTile.id));
+    } else {
+      this.socket.sendRaw(encodeMoveIntent(tileX, tileY));
+    }
     this.spawnMarker(tileX, tileY);
   };
 
