@@ -135,6 +135,12 @@ func (g *Gateway) readLoop(ctx context.Context, c *websocket.Conn, p *zone.Playe
 				continue
 			}
 			g.z.UseAbility(p.ID, m.Slot)
+		case protocol.OpInventoryUse:
+			m, err := protocol.DecodeInventoryUse(frame.Payload)
+			if err != nil {
+				continue
+			}
+			g.z.UseItem(p.ID, m.Slot)
 		case protocol.OpChatSay:
 			m, err := protocol.DecodeChatSay(frame.Payload)
 			if err != nil || m.Body == "" {

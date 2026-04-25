@@ -23,6 +23,11 @@ const TABLE: Record<string, ItemDisplay> = {
   fish_raw_trout: { name: "Raw trout", color: "#a3a37c" },
   fish_raw_lobster: { name: "Raw lobster", color: "#c43c3c" },
   fish_raw_swordfish: { name: "Raw swordfish", color: "#5a8cc4" },
+  // Fish (cooked) — edible, restore HP via OpInventoryUse
+  fish_cooked_shrimp: { name: "Cooked shrimp", color: "#ff7050" },
+  fish_cooked_trout: { name: "Cooked trout", color: "#c8b870" },
+  fish_cooked_lobster: { name: "Cooked lobster", color: "#ff5040" },
+  fish_cooked_swordfish: { name: "Cooked swordfish", color: "#80a8d8" },
   // Bars
   bronze_bar: { name: "Bronze bar", color: "#cd7f32" },
   iron_bar: { name: "Iron bar", color: "#666666" },

@@ -12,6 +12,7 @@ const (
 	CombatMelee  Name = "combat_melee"
 	CombatRanged Name = "combat_ranged"
 	CombatMagic  Name = "combat_magic"
+	Cooking      Name = "cooking"
 	Smithing     Name = "smithing"
 )
 
@@ -113,6 +114,23 @@ var Registry = map[string]NodeDef{
 	"spot_swordfish": {
 		ID: "spot_swordfish", Skill: Fishing,
 		TicksPerAction: 12, OutputItemID: "fish_raw_swordfish", XPPerAction: 25, LevelRequired: 15,
+	},
+
+	// Cooking firepits — consume raw fish, produce cooked fish.
+	"firepit_shrimp": {
+		ID: "firepit_shrimp", Skill: Cooking,
+		TicksPerAction: 5, OutputItemID: "fish_cooked_shrimp", XPPerAction: 5, LevelRequired: 1,
+		RequiredInputs: []string{"fish_raw_shrimp"},
+	},
+	"firepit_trout": {
+		ID: "firepit_trout", Skill: Cooking,
+		TicksPerAction: 6, OutputItemID: "fish_cooked_trout", XPPerAction: 9, LevelRequired: 5,
+		RequiredInputs: []string{"fish_raw_trout"},
+	},
+	"firepit_lobster": {
+		ID: "firepit_lobster", Skill: Cooking,
+		TicksPerAction: 7, OutputItemID: "fish_cooked_lobster", XPPerAction: 14, LevelRequired: 10,
+		RequiredInputs: []string{"fish_raw_lobster"},
 	},
 
 	// Smithing furnaces — consume inputs from inventory per tick.

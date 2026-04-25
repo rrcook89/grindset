@@ -3,7 +3,7 @@ import { TILE_SIZE } from "./TileRenderer";
 
 export interface NodeEntity {
   id: number;
-  kind: "rock" | "tree" | "spot" | "bank" | "furnace";
+  kind: "rock" | "tree" | "spot" | "bank" | "furnace" | "firepit";
   /** Optional skill node id (rock_copper, tree_oak, furnace_bronze, …). */
   defId?: string;
   x: number;
@@ -67,8 +67,29 @@ export class NodeRenderer {
       case "furnace":
         drawFurnace(g, node.defId);
         break;
+      case "firepit":
+        drawFirepit(g);
+        break;
     }
   }
+}
+
+function drawFirepit(g: Graphics): void {
+  // Stone ring
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    const sx = CX + Math.cos(a) * 14;
+    const sy = CY + Math.sin(a) * 10 + 4;
+    g.circle(sx, sy, 3).fill({ color: 0x6a5a4a });
+  }
+  // Logs (crossed)
+  g.rect(CX - 12, CY + 1, 24, 3).fill({ color: 0x5a3a1a });
+  g.rect(CX - 12, CY + 5, 24, 3).fill({ color: 0x4a2a10 });
+  // Flames — three flickering triangles approximated as ellipses
+  g.ellipse(CX, CY - 4, 6, 10).fill({ color: 0xff5020 });
+  g.ellipse(CX - 5, CY - 1, 4, 7).fill({ color: 0xff8030 });
+  g.ellipse(CX + 5, CY - 1, 4, 7).fill({ color: 0xff8030 });
+  g.ellipse(CX, CY - 8, 3, 6).fill({ color: 0xffd060 });
 }
 
 function drawFurnace(g: Graphics, defId?: string): void {

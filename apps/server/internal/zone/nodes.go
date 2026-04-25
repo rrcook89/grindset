@@ -47,6 +47,11 @@ func (z *Zone) loadNodes() {
 		// Smithing furnaces — adjacent to the bank for an OSRS-style smelt loop.
 		{"furnace", "furnace_bronze", 28, 25},
 		{"furnace", "furnace_iron", 28, 26},
+
+		// Cooking firepits — south of the bank cluster.
+		{"firepit", "firepit_shrimp", 24, 30},
+		{"firepit", "firepit_trout", 25, 30},
+		{"firepit", "firepit_lobster", 26, 30},
 	}
 
 	z.mu.Lock()

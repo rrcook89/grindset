@@ -1,6 +1,13 @@
 import { useState, useRef } from "react";
 import { useGameStore } from "../state/store";
 import type { InventoryItem } from "../net/types";
+import { getActiveSocket } from "../net/Socket";
+import { encodeInventoryUse } from "../net/protocol";
+
+function useSlot(slotIndex: number): void {
+  const socket = getActiveSocket();
+  socket?.sendRaw(encodeInventoryUse(slotIndex, 0, 0));
+}
 
 const TOTAL_SLOTS = 28;
 const COLS = 4;
@@ -48,6 +55,7 @@ function ItemSlot({
           draggable
           onDragStart={() => onDragStart(item.slotIndex)}
           onContextMenu={(e) => onContextMenu(e, item)}
+          onDoubleClick={() => useSlot(item.slotIndex)}
           className="flex h-10 w-10 cursor-grab items-center justify-center rounded"
           style={{ backgroundColor: item.color }}
           title={item.name}
@@ -122,6 +130,8 @@ export function Inventory() {
               onClick={() => {
                 if (action === "Deposit") {
                   useGameStore.getState().depositItem(ctxMenu.item.slotIndex);
+                } else if (action === "Use") {
+                  useSlot(ctxMenu.item.slotIndex);
                 }
                 setCtxMenu(null);
               }}

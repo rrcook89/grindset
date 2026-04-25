@@ -17,6 +17,7 @@ var stackable = map[string]bool{
 	"ore_copper": true, "ore_iron": true, "ore_coal": true, "ore_mithril": true,
 	"log_normal": true, "log_oak": true, "log_willow": true, "log_yew": true,
 	"fish_raw_shrimp": true, "fish_raw_trout": true, "fish_raw_lobster": true, "fish_raw_swordfish": true,
+	"fish_cooked_shrimp": true, "fish_cooked_trout": true, "fish_cooked_lobster": true, "fish_cooked_swordfish": true,
 	"bronze_bar": true, "iron_bar": true, "steel_bar": true,
 }
 
@@ -282,8 +283,10 @@ func skillIndex(n skills.Name) uint8 {
 		return 4
 	case skills.CombatMagic:
 		return 5
+	case skills.Cooking:
+		return 6
 	case skills.Smithing:
-		return 7 // Cooking sits at 6 in the client; Smithing is 7.
+		return 7
 	}
 	return 255
 }

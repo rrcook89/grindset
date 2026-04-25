@@ -28,10 +28,15 @@ export const OP = {
   // Inventory / trade  0x70–0x8F
   INVENTORY_FULL: 0x70,
   INVENTORY_DELTA: 0x71,
+  // Sprint-1 client-only bank flow uses a proximity check on the client so
+  // these are not actually exchanged with the server. Keep the old aliases
+  // for tests and Socket switch arms; the real server opcode at 0x72 is
+  // INVENTORY_USE (below) which IS sent by the client to consume food.
   BANK_OPEN: 0x72,
   BANK_CLOSE: 0x73,
   BANK_DEPOSIT: 0x74,
   BANK_WITHDRAW: 0x75,
+  INVENTORY_USE: 0x72, // C→S: use slot on self/other (slot:u8, kind:u8, target_id:u32)
 
   // Chat  0x90–0x9F
   CHAT_SEND: 0x90,
@@ -114,6 +119,19 @@ export function encodeSkillStart(nodeId: number): Uint8Array {
   const { buf, view } = alloc(4); // node_id:u32
   writeHeader(view, OP.SKILL_START, 4);
   view.setUint32(4, nodeId, true);
+  return new Uint8Array(buf);
+}
+
+/**
+ * 0x72 InventoryUse — use a slot on a target.
+ * Sprint-1 only fires this with target_kind=0 (self) to eat cooked food.
+ */
+export function encodeInventoryUse(slot: number, targetKind = 0, targetId = 0): Uint8Array {
+  const { buf, view } = alloc(6); // slot:u8, kind:u8, target_id:u32
+  writeHeader(view, OP.INVENTORY_USE, 6);
+  view.setUint8(4, slot);
+  view.setUint8(5, targetKind);
+  view.setUint32(6, targetId, true);
   return new Uint8Array(buf);
 }
 

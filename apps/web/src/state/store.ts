@@ -62,6 +62,10 @@ const DEV_NODES: NodeEntity[] = [
   // Smithing furnaces — adjacent to the bank for OSRS-style smelt loop.
   { id: 2_000_020, kind: "furnace", defId: "furnace_bronze", x: 28, y: 25 },
   { id: 2_000_021, kind: "furnace", defId: "furnace_iron",   x: 28, y: 26 },
+  // Cooking firepits — south of the bank cluster.
+  { id: 2_000_022, kind: "firepit", defId: "firepit_shrimp",  x: 24, y: 30 },
+  { id: 2_000_023, kind: "firepit", defId: "firepit_trout",   x: 25, y: 30 },
+  { id: 2_000_024, kind: "firepit", defId: "firepit_lobster", x: 26, y: 30 },
   // Bank
   { id: 2_000_100, kind: "bank", x: 26, y: 25 },
 ];
