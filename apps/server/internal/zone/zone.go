@@ -172,13 +172,32 @@ func (z *Zone) QueueMove(pid uint32, tx, ty uint16) {
 func (z *Zone) snapshotLocked() []protocol.EntityPos {
 	out := make([]protocol.EntityPos, 0, len(z.players)+len(z.mobs)+len(z.nodes))
 	for _, p := range z.players {
-		out = append(out, protocol.EntityPos{ID: p.ID, X: p.X, Y: p.Y})
+		out = append(out, protocol.EntityPos{
+			ID:    p.ID,
+			X:     p.X,
+			Y:     p.Y,
+			Kind:  protocol.EntityKindPlayer,
+			HP:    p.HP,
+			MaxHP: p.MaxHP,
+		})
 	}
 	for _, m := range z.mobs {
-		out = append(out, protocol.EntityPos{ID: m.ID, X: m.X, Y: m.Y})
+		out = append(out, protocol.EntityPos{
+			ID:    m.ID,
+			X:     m.X,
+			Y:     m.Y,
+			Kind:  protocol.EntityKindMob,
+			HP:    m.HP,
+			MaxHP: m.MaxHP,
+		})
 	}
 	for _, n := range z.nodes {
-		out = append(out, protocol.EntityPos{ID: n.ID, X: n.X, Y: n.Y})
+		out = append(out, protocol.EntityPos{
+			ID:   n.ID,
+			X:    n.X,
+			Y:    n.Y,
+			Kind: protocol.EntityKindNode,
+		})
 	}
 	return out
 }

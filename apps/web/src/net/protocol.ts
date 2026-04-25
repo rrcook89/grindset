@@ -188,10 +188,18 @@ export function decodeWelcome(buf: ArrayBuffer): WelcomePayload {
   };
 }
 
+// Entity kinds (matches server protocol.EntityKind*)
+export const ENTITY_KIND_PLAYER = 0;
+export const ENTITY_KIND_MOB = 1;
+export const ENTITY_KIND_NODE = 2;
+
 export interface EntityPosition {
   entityId: number;
   x: number;
   y: number;
+  kind: number;
+  hp: number;
+  maxHp: number;
 }
 
 export interface PositionDeltaPayload {
@@ -200,7 +208,7 @@ export interface PositionDeltaPayload {
 
 /**
  * 0x11 PositionDelta payload (after header):
- * count:u16, then count × (entity_id:u32, x:u16, y:u16) = 8 bytes each
+ * count:u16, then count × (entity_id:u32, x:u16, y:u16, kind:u8, hp:u16, max_hp:u16) = 13 bytes each
  */
 export function decodePositionDelta(buf: ArrayBuffer): PositionDeltaPayload {
   const view = new DataView(buf);
@@ -212,8 +220,11 @@ export function decodePositionDelta(buf: ArrayBuffer): PositionDeltaPayload {
       entityId: view.getUint32(offset, true),
       x: view.getUint16(offset + 4, true),
       y: view.getUint16(offset + 6, true),
+      kind: view.getUint8(offset + 8),
+      hp: view.getUint16(offset + 9, true),
+      maxHp: view.getUint16(offset + 11, true),
     });
-    offset += 8;
+    offset += 13;
   }
   return { entities };
 }

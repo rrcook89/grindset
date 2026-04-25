@@ -13,7 +13,7 @@ import type {
   HitSplat,
   Ability,
 } from "../net/types";
-import type { EntityPosition } from "../net/protocol";
+import { ENTITY_KIND_MOB, ENTITY_KIND_NODE, type EntityPosition } from "../net/protocol";
 import type { NodeEntity } from "../game/NodeRenderer";
 import type { MobEntity } from "../game/EntityRenderer";
 
@@ -214,17 +214,49 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   applyPositionDelta: (entities) => {
     const localId = get().localPlayer?.id;
-    const next = new Map(get().otherPlayers);
+    const nextPlayers = new Map<number, Player>();
+    const nextMobs = new Map(get().mobs);
+    const seenMobs = new Set<number>();
     for (const e of entities) {
+      if (e.kind === ENTITY_KIND_MOB) {
+        seenMobs.add(e.entityId);
+        const prev = nextMobs.get(e.entityId);
+        nextMobs.set(e.entityId, {
+          id: e.entityId,
+          kind: prev?.kind ?? "mob",
+          x: e.x,
+          y: e.y,
+          hp: e.hp,
+          maxHp: e.maxHp,
+        });
+        continue;
+      }
+      if (e.kind === ENTITY_KIND_NODE) {
+        // Node positions are static; PositionDelta should not normally include them, ignore.
+        continue;
+      }
+      // ENTITY_KIND_PLAYER (or unknown — treat as player)
       if (e.entityId === localId) {
         set((s) => ({
-          localPlayer: s.localPlayer ? { ...s.localPlayer, x: e.x, y: e.y } : s.localPlayer,
+          localPlayer: s.localPlayer
+            ? { ...s.localPlayer, x: e.x, y: e.y, hp: e.hp, maxHp: e.maxHp }
+            : s.localPlayer,
         }));
       } else {
-        next.set(e.entityId, { id: e.entityId, x: e.x, y: e.y });
+        nextPlayers.set(e.entityId, {
+          id: e.entityId,
+          x: e.x,
+          y: e.y,
+          hp: e.hp,
+          maxHp: e.maxHp,
+        });
       }
     }
-    set({ otherPlayers: new Map(next) });
+    // Drop mobs not present in this snapshot (despawn/death).
+    for (const id of nextMobs.keys()) {
+      if (!seenMobs.has(id)) nextMobs.delete(id);
+    }
+    set({ otherPlayers: nextPlayers, mobs: nextMobs });
   },
 
   // ── Nodes ───────────────────────────────────────────────────────────────────

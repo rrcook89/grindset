@@ -92,20 +92,35 @@ func DecodeMoveIntent(p []byte) (MoveIntent, error) {
 	}, nil
 }
 
-// PositionDelta: [count:u16, (entity_id:u32, x:u16, y:u16) × count]
+// PositionDelta: [count:u16, (entity_id:u32, x:u16, y:u16, kind:u8, hp:u16, max_hp:u16) × count]
+// Kind: 0 = player, 1 = mob, 2 = node. HP/MaxHP are 0 for nodes.
+const (
+	EntityKindPlayer uint8 = 0
+	EntityKindMob    uint8 = 1
+	EntityKindNode   uint8 = 2
+)
+
+const entityPosBytes = 13
+
 type EntityPos struct {
-	ID   uint32
-	X, Y uint16
+	ID    uint32
+	X, Y  uint16
+	Kind  uint8
+	HP    uint16
+	MaxHP uint16
 }
 
 func EncodePositionDelta(entries []EntityPos) []byte {
-	p := make([]byte, 2+8*len(entries))
+	p := make([]byte, 2+entityPosBytes*len(entries))
 	binary.LittleEndian.PutUint16(p[0:2], uint16(len(entries)))
 	for i, e := range entries {
-		off := 2 + i*8
+		off := 2 + i*entityPosBytes
 		binary.LittleEndian.PutUint32(p[off:off+4], e.ID)
 		binary.LittleEndian.PutUint16(p[off+4:off+6], e.X)
 		binary.LittleEndian.PutUint16(p[off+6:off+8], e.Y)
+		p[off+8] = e.Kind
+		binary.LittleEndian.PutUint16(p[off+9:off+11], e.HP)
+		binary.LittleEndian.PutUint16(p[off+11:off+13], e.MaxHP)
 	}
 	return Encode(OpPositionDelta, p)
 }
@@ -115,16 +130,19 @@ func DecodePositionDelta(p []byte) ([]EntityPos, error) {
 		return nil, ErrShort
 	}
 	n := int(binary.LittleEndian.Uint16(p[0:2]))
-	if len(p) < 2+8*n {
+	if len(p) < 2+entityPosBytes*n {
 		return nil, ErrShort
 	}
 	out := make([]EntityPos, n)
 	for i := 0; i < n; i++ {
-		off := 2 + i*8
+		off := 2 + i*entityPosBytes
 		out[i] = EntityPos{
-			ID: binary.LittleEndian.Uint32(p[off : off+4]),
-			X:  binary.LittleEndian.Uint16(p[off+4 : off+6]),
-			Y:  binary.LittleEndian.Uint16(p[off+6 : off+8]),
+			ID:    binary.LittleEndian.Uint32(p[off : off+4]),
+			X:     binary.LittleEndian.Uint16(p[off+4 : off+6]),
+			Y:     binary.LittleEndian.Uint16(p[off+6 : off+8]),
+			Kind:  p[off+8],
+			HP:    binary.LittleEndian.Uint16(p[off+9 : off+11]),
+			MaxHP: binary.LittleEndian.Uint16(p[off+11 : off+13]),
 		}
 	}
 	return out, nil

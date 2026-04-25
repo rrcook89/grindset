@@ -129,11 +129,18 @@ describe("decodeWelcome", () => {
 
 // ── PositionDelta (0x11) ──────────────────────────────────────────────────────
 
-function makePositionDeltaBuffer(
-  entities: Array<{ entityId: number; x: number; y: number }>,
-): ArrayBuffer {
-  // header(4) + count:u16(2) + entities×8
-  const payloadLen = 2 + entities.length * 8;
+interface PdEntity {
+  entityId: number;
+  x: number;
+  y: number;
+  kind: number;
+  hp: number;
+  maxHp: number;
+}
+
+function makePositionDeltaBuffer(entities: PdEntity[]): ArrayBuffer {
+  // header(4) + count:u16(2) + entities×13
+  const payloadLen = 2 + entities.length * 13;
   const buf = new ArrayBuffer(4 + payloadLen);
   const view = new DataView(buf);
   view.setUint8(0, OP.POSITION_DELTA);
@@ -145,7 +152,10 @@ function makePositionDeltaBuffer(
     view.setUint32(offset, e.entityId, true);
     view.setUint16(offset + 4, e.x, true);
     view.setUint16(offset + 6, e.y, true);
-    offset += 8;
+    view.setUint8(offset + 8, e.kind);
+    view.setUint16(offset + 9, e.hp, true);
+    view.setUint16(offset + 11, e.maxHp, true);
+    offset += 13;
   }
   return buf;
 }
@@ -157,24 +167,28 @@ describe("decodePositionDelta", () => {
   });
 
   it("decodes a single entity", () => {
-    const buf = makePositionDeltaBuffer([{ entityId: 7, x: 15, y: 30 }]);
+    const buf = makePositionDeltaBuffer([
+      { entityId: 7, x: 15, y: 30, kind: 0, hp: 10, maxHp: 10 },
+    ]);
     const { entities } = decodePositionDelta(buf);
     expect(entities).toHaveLength(1);
-    expect(entities[0]).toEqual({ entityId: 7, x: 15, y: 30 });
+    expect(entities[0]).toEqual({ entityId: 7, x: 15, y: 30, kind: 0, hp: 10, maxHp: 10 });
   });
 
   it("decodes multiple entities in order", () => {
-    const input = [
-      { entityId: 1, x: 0, y: 0 },
-      { entityId: 2, x: 10, y: 20 },
-      { entityId: 99, x: 49, y: 49 },
+    const input: PdEntity[] = [
+      { entityId: 1, x: 0, y: 0, kind: 0, hp: 10, maxHp: 10 },
+      { entityId: 1_000_002, x: 10, y: 20, kind: 1, hp: 5, maxHp: 8 },
+      { entityId: 2_000_099, x: 49, y: 49, kind: 2, hp: 0, maxHp: 0 },
     ];
     const buf = makePositionDeltaBuffer(input);
     expect(decodePositionDelta(buf).entities).toEqual(input);
   });
 
   it("handles u32 entity IDs", () => {
-    const buf = makePositionDeltaBuffer([{ entityId: 0xffffffff, x: 1, y: 1 }]);
+    const buf = makePositionDeltaBuffer([
+      { entityId: 0xffffffff, x: 1, y: 1, kind: 0, hp: 0, maxHp: 0 },
+    ]);
     expect(decodePositionDelta(buf).entities[0].entityId).toBe(0xffffffff);
   });
 });

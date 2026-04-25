@@ -53,9 +53,9 @@ func TestMoveIntentRoundTrip(t *testing.T) {
 
 func TestPositionDeltaRoundTrip(t *testing.T) {
 	entries := []EntityPos{
-		{ID: 1, X: 2, Y: 3},
-		{ID: 4, X: 5, Y: 6},
-		{ID: 7, X: 8, Y: 9},
+		{ID: 1, X: 2, Y: 3, Kind: EntityKindPlayer, HP: 10, MaxHP: 10},
+		{ID: 1_000_004, X: 5, Y: 6, Kind: EntityKindMob, HP: 7, MaxHP: 12},
+		{ID: 2_000_007, X: 8, Y: 9, Kind: EntityKindNode},
 	}
 	raw := EncodePositionDelta(entries)
 	f, err := Decode(raw)
