@@ -22,8 +22,8 @@ func EntityKind(id uint32) string {
 	}
 }
 
-// Mob is a monster in the zone. Hostile within an aggro radius (Sprint-1
-// simplified: aggro is "any player adjacent who's targeting me").
+// Mob is a monster in the zone. AggroRadius > 0 makes it pursue any player
+// within Chebyshev distance ≤ radius (one tile per tick).
 type Mob struct {
 	ID    uint32
 	DefID string // mob_def_id e.g. "marsh_rat"
@@ -34,6 +34,7 @@ type Mob struct {
 	// Spawn anchor for respawn-on-death.
 	OriginX, OriginY uint16
 	RespawnSecs      int
+	AggroRadius      uint16 // 0 = passive defender
 
 	// Combat: attack cooldown ticks; 0 = ready to swing.
 	AttackCooldown int

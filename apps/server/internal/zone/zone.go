@@ -40,6 +40,7 @@ type pendingRespawn struct {
 	x, y        uint16
 	maxHP       uint16
 	respawnSecs int
+	aggroRadius uint16
 	at          time.Time
 }
 

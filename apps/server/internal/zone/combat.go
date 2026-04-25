@@ -66,12 +66,20 @@ func (z *Zone) resolveCombatLocked() {
 		if mob.HP == 0 {
 			continue
 		}
-		// Find an attacker (cheapest: scan players who target this mob).
+		// Pick a swing target: any live adjacent player.
+		// Priority: someone who's targeting this mob (so reciprocal combat
+		// feels deliberate), then any adjacent live player (aggro pursuit).
 		var attacker *Player
 		for _, pl := range z.players {
-			if pl.HP > 0 && pl.CombatTarget == mob.ID && adjacentOrSame(pl.X, pl.Y, mob.X, mob.Y) {
+			if pl.HP == 0 || !adjacentOrSame(pl.X, pl.Y, mob.X, mob.Y) {
+				continue
+			}
+			if pl.CombatTarget == mob.ID {
 				attacker = pl
 				break
+			}
+			if attacker == nil && mob.AggroRadius > 0 {
+				attacker = pl // tentative — keep scanning for a reciprocal target
 			}
 		}
 		if attacker == nil {
@@ -196,6 +204,7 @@ func (z *Zone) killMobLocked(p *Player, mob *Mob) {
 		y:           mob.OriginY,
 		maxHP:       mob.MaxHP,
 		respawnSecs: mob.RespawnSecs,
+		aggroRadius: mob.AggroRadius,
 		at:          time.Now().Add(time.Duration(mob.RespawnSecs) * time.Second),
 	})
 	delete(z.mobs, mob.ID)
@@ -307,6 +316,7 @@ func (z *Zone) drainRespawnsLocked() {
 			OriginX:     r.x,
 			OriginY:     r.y,
 			RespawnSecs: r.respawnSecs,
+			AggroRadius: r.aggroRadius,
 		}
 	}
 	z.pendingRespawn = keep
