@@ -5,8 +5,13 @@
  * autoplay-policy warnings.
  */
 
+const MUTE_KEY = "grindset_sfx_muted";
+
 let ctx: AudioContext | null = null;
-let muted = false;
+let muted = (() => {
+  if (typeof window === "undefined") return false;
+  try { return localStorage.getItem(MUTE_KEY) === "1"; } catch { return false; }
+})();
 
 function getCtx(): AudioContext | null {
   if (muted) return null;
@@ -24,6 +29,13 @@ function getCtx(): AudioContext | null {
 
 export function setMuted(value: boolean): void {
   muted = value;
+  if (typeof window === "undefined") return;
+  try {
+    if (value) localStorage.setItem(MUTE_KEY, "1");
+    else localStorage.removeItem(MUTE_KEY);
+  } catch {
+    // ignore
+  }
 }
 
 export function isMuted(): boolean {

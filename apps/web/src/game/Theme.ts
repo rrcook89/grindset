@@ -71,7 +71,20 @@ const THEMES: Record<ThemeId, Theme> = {
   desert: DESERT,
 };
 
-let current: Theme = MIREHOLM;
+const THEME_KEY = "grindset_theme";
+
+function loadStoredTheme(): Theme {
+  if (typeof window === "undefined") return MIREHOLM;
+  try {
+    const id = localStorage.getItem(THEME_KEY) as ThemeId | null;
+    if (id && THEMES[id]) return THEMES[id];
+  } catch {
+    // ignore — private mode etc.
+  }
+  return MIREHOLM;
+}
+
+let current: Theme = loadStoredTheme();
 const listeners = new Set<() => void>();
 
 export function activeTheme(): Theme {
@@ -81,6 +94,9 @@ export function activeTheme(): Theme {
 export function setTheme(id: ThemeId): void {
   if (current.id === id) return;
   current = THEMES[id];
+  if (typeof window !== "undefined") {
+    try { localStorage.setItem(THEME_KEY, id); } catch { /* ignore */ }
+  }
   for (const fn of listeners) fn();
 }
 
