@@ -1,6 +1,6 @@
 import type { FederatedPointerEvent, Ticker } from "pixi.js";
 import { Graphics, Container } from "pixi.js";
-import { encodeMoveIntent, encodeSkillStart } from "../net/protocol";
+import { encodeMoveIntent, encodeSkillStart, encodeCombatTarget } from "../net/protocol";
 import type { GameSocket } from "../net/Socket";
 import { useGameStore } from "../state/store";
 import { TILE_SIZE } from "./TileRenderer";
@@ -33,9 +33,23 @@ export class Input {
 
     if (tileX < 0 || tileY < 0) return;
 
-    // If the clicked tile contains a skilling node, start mining/fishing/etc.
-    // Otherwise fall back to walking there.
-    const { nodes } = useGameStore.getState();
+    // Click priority: mob > node > walk.
+    const { nodes, mobs } = useGameStore.getState();
+
+    let mobAtTile: { id: number } | null = null;
+    for (const mob of mobs.values()) {
+      if (mob.x === tileX && mob.y === tileY) {
+        mobAtTile = { id: mob.id };
+        break;
+      }
+    }
+
+    if (mobAtTile) {
+      this.socket.sendRaw(encodeCombatTarget(mobAtTile.id));
+      this.spawnMarker(tileX, tileY);
+      return;
+    }
+
     let nodeAtTile: { id: number } | null = null;
     for (const node of nodes.values()) {
       if (node.x === tileX && node.y === tileY) {

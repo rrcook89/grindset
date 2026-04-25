@@ -123,6 +123,12 @@ func (g *Gateway) readLoop(ctx context.Context, c *websocket.Conn, p *zone.Playe
 			g.z.StartSkillAction(p.ID, m.NodeID)
 		case protocol.OpSkillStop:
 			g.z.StopSkillAction(p.ID)
+		case protocol.OpCombatTarget:
+			m, err := protocol.DecodeCombatTarget(frame.Payload)
+			if err != nil {
+				continue
+			}
+			g.z.SetCombatTarget(p.ID, m.EntityID)
 		case protocol.OpChatSay:
 			m, err := protocol.DecodeChatSay(frame.Payload)
 			if err != nil || m.Body == "" {

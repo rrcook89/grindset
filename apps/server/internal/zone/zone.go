@@ -56,6 +56,11 @@ type Player struct {
 
 	// $GRIND in base units (9 decimals).
 	GrindBalance int64
+
+	// Combat: 0 = no target.
+	CombatTarget uint32
+	// Tick counter so we attack on a cadence rather than every frame.
+	AttackCooldown int
 }
 
 type intent struct {

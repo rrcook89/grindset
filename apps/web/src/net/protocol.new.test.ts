@@ -1,15 +1,15 @@
 import { describe, it, expect } from "vitest";
 import {
   OP,
-  encodeAttackIntent,
+  encodeCombatTarget,
   encodeAbilityUse,
   encodeSkillStart,
   encodeBankDeposit,
   encodeBankWithdraw,
   encodeChatSend,
   encodeGEOrderCancel,
-  decodeCombatUpdate,
-  decodeHitSplat,
+  decodeCombatHit,
+  decodeCombatDeath,
   decodeSkillTick,
   decodeInventoryDelta,
   decodeChatMessage,
@@ -25,19 +25,20 @@ function hdr(frame: Uint8Array): { op: number; flags: number; len: number } {
   return { op: v.getUint8(0), flags: v.getUint8(1), len: v.getUint16(2, true) };
 }
 
-// ── encodeAttackIntent (0x30) ─────────────────────────────────────────────────
+// ── encodeCombatTarget (0x30) ────────────────────────────────────────────────
 
-describe("encodeAttackIntent", () => {
+describe("encodeCombatTarget", () => {
   it("writes correct opcode", () => {
-    expect(encodeAttackIntent(1)[0]).toBe(OP.ATTACK_INTENT);
+    expect(encodeCombatTarget(1)[0]).toBe(OP.COMBAT_TARGET);
   });
 
   it("payload length is 4", () => {
-    expect(hdr(encodeAttackIntent(1)).len).toBe(4);
+    expect(hdr(encodeCombatTarget(1)).len).toBe(4);
   });
 
-  it("round-trips entity_id", () => {
-    const frame = encodeAttackIntent(0xdeadbeef);
+  it("round-trips entity_id (0 = clear)", () => {
+    expect(new DataView(encodeCombatTarget(0).buffer).getUint32(4, true)).toBe(0);
+    const frame = encodeCombatTarget(0xdeadbeef);
     expect(new DataView(frame.buffer).getUint32(4, true)).toBe(0xdeadbeef);
   });
 });
@@ -150,63 +151,49 @@ describe("encodeGEOrderCancel", () => {
   });
 });
 
-// ── decodeCombatUpdate (0x31) ─────────────────────────────────────────────────
+// ── decodeCombatHit (0x31) ───────────────────────────────────────────────────
 
-function makeCombatUpdate(entityId: number, hp: number, maxHp: number, name: string): ArrayBuffer {
-  const nameBytes = new TextEncoder().encode(name);
-  const buf = new ArrayBuffer(4 + 4 + 2 + 2 + 1 + nameBytes.byteLength);
+function makeCombatHit(attackerId: number, targetId: number, damage: number, maxHit: number): ArrayBuffer {
+  const buf = new ArrayBuffer(4 + 4 + 4 + 2 + 2);
   const v = new DataView(buf);
-  v.setUint8(0, OP.COMBAT_UPDATE);
+  v.setUint8(0, OP.COMBAT_HIT);
   v.setUint8(1, 0);
-  v.setUint16(2, buf.byteLength - 4, true);
-  v.setUint32(4, entityId, true);
-  v.setUint16(8, hp, true);
-  v.setUint16(10, maxHp, true);
-  v.setUint8(12, nameBytes.byteLength);
-  new Uint8Array(buf).set(nameBytes, 13);
+  v.setUint16(2, 12, true);
+  v.setUint32(4, attackerId, true);
+  v.setUint32(8, targetId, true);
+  v.setUint16(12, damage, true);
+  v.setUint16(14, maxHit, true);
   return buf;
 }
 
-describe("decodeCombatUpdate", () => {
-  it("decodes all fields", () => {
-    const buf = makeCombatUpdate(7, 45, 100, "Goblin");
-    const p = decodeCombatUpdate(buf);
-    expect(p.entityId).toBe(7);
-    expect(p.hp).toBe(45);
-    expect(p.maxHp).toBe(100);
-    expect(p.name).toBe("Goblin");
+describe("decodeCombatHit", () => {
+  it("decodes a hit", () => {
+    const p = decodeCombatHit(makeCombatHit(7, 1_000_001, 5, 8));
+    expect(p).toEqual({ attackerId: 7, targetId: 1_000_001, damage: 5, maxHit: 8 });
   });
 
-  it("handles empty name", () => {
-    const buf = makeCombatUpdate(1, 0, 50, "");
-    expect(decodeCombatUpdate(buf).name).toBe("");
+  it("decodes a miss (damage=0)", () => {
+    expect(decodeCombatHit(makeCombatHit(2, 99, 0, 8)).damage).toBe(0);
   });
 });
 
-// ── decodeHitSplat (0x32) ────────────────────────────────────────────────────
+// ── decodeCombatDeath (0x32) ─────────────────────────────────────────────────
 
-function makeHitSplat(entityId: number, amount: number, hitType: number): ArrayBuffer {
-  const buf = new ArrayBuffer(4 + 4 + 2 + 1);
+function makeCombatDeath(entityId: number, killerId: number): ArrayBuffer {
+  const buf = new ArrayBuffer(4 + 4 + 4);
   const v = new DataView(buf);
-  v.setUint8(0, OP.HIT_SPLAT);
+  v.setUint8(0, OP.COMBAT_DEATH);
   v.setUint8(1, 0);
-  v.setUint16(2, 7, true);
+  v.setUint16(2, 8, true);
   v.setUint32(4, entityId, true);
-  v.setUint16(8, amount, true);
-  v.setUint8(10, hitType);
+  v.setUint32(8, killerId, true);
   return buf;
 }
 
-describe("decodeHitSplat", () => {
-  it("decodes damage splat (type 0)", () => {
-    const p = decodeHitSplat(makeHitSplat(5, 30, 0));
-    expect(p).toEqual({ entityId: 5, amount: 30, hitType: 0 });
-  });
-
-  it("decodes heal splat (type 1)", () => {
-    const p = decodeHitSplat(makeHitSplat(2, 15, 1));
-    expect(p.hitType).toBe(1);
-    expect(p.amount).toBe(15);
+describe("decodeCombatDeath", () => {
+  it("decodes both ids", () => {
+    const p = decodeCombatDeath(makeCombatDeath(1_000_001, 7));
+    expect(p).toEqual({ entityId: 1_000_001, killerId: 7 });
   });
 });
 

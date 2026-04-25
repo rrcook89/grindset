@@ -4,8 +4,8 @@ import {
   decodeWelcome,
   decodePositionDelta,
   decodeError,
-  decodeCombatUpdate,
-  decodeHitSplat,
+  decodeCombatHit,
+  decodeCombatDeath,
   decodeSkillTick,
   decodeSkillLevelUp,
   decodeInventoryDelta,
@@ -119,26 +119,27 @@ export class GameSocket {
         break;
       }
 
-      case OP.COMBAT_UPDATE: {
-        const p = decodeCombatUpdate(buf);
-        store.setCombatTarget({ entityId: p.entityId, name: p.name, hp: p.hp, maxHp: p.maxHp });
-        break;
-      }
-
-      case OP.HIT_SPLAT: {
-        const p = decodeHitSplat(buf);
+      case OP.COMBAT_HIT: {
+        const p = decodeCombatHit(buf);
+        // Float a hit splat over the target.
         store.applyHitSplat({
           id: `${Date.now()}-${Math.random()}`,
-          entityId: p.entityId,
-          amount: p.amount,
-          type: p.hitType === 1 ? "heal" : "damage",
+          entityId: p.targetId,
+          amount: p.damage,
+          type: p.damage === 0 ? "heal" : "damage",
           timestamp: Date.now(),
         });
         break;
       }
 
-      case OP.COMBAT_END: {
-        store.setCombatTarget(null);
+      case OP.COMBAT_DEATH: {
+        const p = decodeCombatDeath(buf);
+        // Drop the target frame if it was the killed mob.
+        const tgt = useGameStore.getState().combatTarget;
+        if (tgt && tgt.entityId === p.entityId) {
+          store.setCombatTarget(null);
+        }
+        // Mob will disappear from the next PositionDelta — no extra action.
         break;
       }
 

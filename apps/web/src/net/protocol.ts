@@ -13,12 +13,11 @@ export const OP = {
   MOVE_INTENT: 0x10,
   POSITION_DELTA: 0x11,
 
-  // Combat  0x30–0x4F
-  ATTACK_INTENT: 0x30,
-  COMBAT_UPDATE: 0x31,
-  HIT_SPLAT: 0x32,
-  COMBAT_END: 0x33,
-  ABILITY_USE: 0x34,
+  // Combat  0x30–0x4F  — aligned to server opcodes.go
+  COMBAT_TARGET: 0x30,  // C→S: target this entity (0 to clear)
+  COMBAT_HIT: 0x31,     // S→C: a swing resolved (damage=0 means miss)
+  COMBAT_DEATH: 0x32,   // S→C: entity died
+  ABILITY_USE: 0x34,    // C→S: trigger hotbar ability
 
   // Skilling  0x50–0x6F  — aligned to server opcodes.go
   SKILL_START: 0x50,    // C→S: start skilling on node_id
@@ -95,9 +94,9 @@ export function encodeMoveIntent(targetX: number, targetY: number): Uint8Array {
 }
 
 /** 0x30 AttackIntent — target an entity */
-export function encodeAttackIntent(entityId: number): Uint8Array {
-  const { buf, view } = alloc(4); // entity_id:u32
-  writeHeader(view, OP.ATTACK_INTENT, 4);
+export function encodeCombatTarget(entityId: number): Uint8Array {
+  const { buf, view } = alloc(4); // entity_id:u32 (0 = clear target)
+  writeHeader(view, OP.COMBAT_TARGET, 4);
   view.setUint32(4, entityId, true);
   return new Uint8Array(buf);
 }
@@ -237,45 +236,42 @@ export function decodeError(buf: ArrayBuffer): ErrorPayload {
   };
 }
 
-export interface CombatUpdatePayload {
-  entityId: number;
-  hp: number;
-  maxHp: number;
-  nameLen: number;
-  name: string;
+export interface CombatHitPayload {
+  attackerId: number;
+  targetId: number;
+  damage: number; // 0 = miss
+  maxHit: number;
 }
 
 /**
- * 0x31 CombatUpdate payload (after header):
- * entity_id:u32, hp:u16, max_hp:u16, name_len:u8, name_utf8
+ * 0x31 CombatHit payload (after header):
+ * attacker_id:u32, target_id:u32, damage:u16, max_hit:u16
+ * (matches server EncodeCombatHit)
  */
-export function decodeCombatUpdate(buf: ArrayBuffer): CombatUpdatePayload {
+export function decodeCombatHit(buf: ArrayBuffer): CombatHitPayload {
   const view = new DataView(buf);
-  const entityId = view.getUint32(4, true);
-  const hp = view.getUint16(8, true);
-  const maxHp = view.getUint16(10, true);
-  const nameLen = view.getUint8(12);
-  const name = decodeString(buf, 13, nameLen);
-  return { entityId, hp, maxHp, nameLen, name };
+  return {
+    attackerId: view.getUint32(4, true),
+    targetId: view.getUint32(8, true),
+    damage: view.getUint16(12, true),
+    maxHit: view.getUint16(14, true),
+  };
 }
 
-export interface HitSplatPayload {
+export interface CombatDeathPayload {
   entityId: number;
-  amount: number;
-  /** 0 = damage, 1 = heal */
-  hitType: number;
+  killerId: number;
 }
 
 /**
- * 0x32 HitSplat payload (after header):
- * entity_id:u32, amount:u16, hit_type:u8
+ * 0x32 CombatDeath payload (after header):
+ * entity_id:u32, killer_id:u32
  */
-export function decodeHitSplat(buf: ArrayBuffer): HitSplatPayload {
+export function decodeCombatDeath(buf: ArrayBuffer): CombatDeathPayload {
   const view = new DataView(buf);
   return {
     entityId: view.getUint32(4, true),
-    amount: view.getUint16(8, true),
-    hitType: view.getUint8(10),
+    killerId: view.getUint32(8, true),
   };
 }
 

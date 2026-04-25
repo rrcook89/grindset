@@ -72,7 +72,10 @@ func (z *Zone) step() {
 	// 3. Skilling: advance ActiveActions for any player on a node tile
 	z.resolveSkillingLocked()
 
-	// 4. Broadcast: send per-viewer filtered PositionDelta
+	// 4. Combat: swing at the player's active CombatTarget
+	z.resolveCombatLocked()
+
+	// 5. Broadcast: send per-viewer filtered PositionDelta
 	snapshot := z.snapshotLocked()
 	for _, viewer := range z.players {
 		vis := make([]protocol.EntityPos, 0, len(snapshot))
