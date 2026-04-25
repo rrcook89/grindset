@@ -256,14 +256,32 @@ export const useGameStore = create<GameState>((set, get) => ({
   combatTarget: null,
   hitSplats: [],
 
-  abilities: Array.from({ length: 5 }, (_, i) => ({
-    slotIndex: i,
-    id: 0,
-    name: "",
-    cooldownMs: 0,
-    cooldownStart: 0,
-    color: "#3BD67A",
-  })),
+  abilities: [
+    {
+      slotIndex: 0,
+      id: 1, // heavy_strike
+      name: "Heavy Strike",
+      cooldownMs: 6_000, // matches server abilityHeavyStrikeCooldown × 400ms
+      cooldownStart: 0,
+      color: "#E04545", // loss-red
+    },
+    {
+      slotIndex: 1,
+      id: 2, // bandage
+      name: "Bandage",
+      cooldownMs: 12_000,
+      cooldownStart: 0,
+      color: "#3BD67A", // gain-green
+    },
+    ...Array.from({ length: 3 }, (_, i) => ({
+      slotIndex: 2 + i,
+      id: 0,
+      name: "",
+      cooldownMs: 0,
+      cooldownStart: 0,
+      color: "#3BD67A",
+    })),
+  ],
 
   jwt: typeof window !== "undefined" ? (localStorage.getItem("grindset_jwt") ?? null) : null,
 

@@ -85,6 +85,17 @@ func DecodeCombatHit(p []byte) (CombatHit, error) {
 	}, nil
 }
 
+// AbilityUse (C→S): trigger hotbar ability `slot:u8`.
+type AbilityUse struct{ Slot uint8 }
+
+func EncodeAbilityUse(m AbilityUse) []byte { return Encode(OpAbilityUse, []byte{m.Slot}) }
+func DecodeAbilityUse(p []byte) (AbilityUse, error) {
+	if len(p) < 1 {
+		return AbilityUse{}, ErrShort
+	}
+	return AbilityUse{Slot: p[0]}, nil
+}
+
 // CombatDeath (S→C): entity died, killer optional (0 = environmental / unknown).
 type CombatDeath struct {
 	EntityID uint32

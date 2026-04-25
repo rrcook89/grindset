@@ -81,6 +81,9 @@ func (z *Zone) step() {
 	// 6. Mob respawns whose timer has fired
 	z.drainRespawnsLocked()
 
+	// 6b. Decay ability cooldowns by 1 tick.
+	z.decayAbilityCooldownsLocked()
+
 	// 7. Broadcast: send per-viewer filtered PositionDelta
 	snapshot := z.snapshotLocked()
 	for _, viewer := range z.players {

@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useGameStore } from "../state/store";
+import { getActiveSocket } from "../net/Socket";
+import { encodeAbilityUse } from "../net/protocol";
 
 const ABILITY_SLOTS = 5;
 
@@ -52,7 +54,8 @@ export function Hotbar() {
       const elapsed = ability.cooldownStart ? Date.now() - ability.cooldownStart : Infinity;
       if (elapsed < ability.cooldownMs) return; // still cooling
       triggerCooldown(slotIndex);
-      // TODO Sprint 5: socket.sendRaw(encodeAbilityUse(slotIndex))
+      const socket = getActiveSocket();
+      socket?.sendRaw(encodeAbilityUse(slotIndex));
     },
     [abilities, triggerCooldown],
   );

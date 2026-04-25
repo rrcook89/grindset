@@ -54,6 +54,16 @@ function levelForXP(xp: number): number {
   return lvl;
 }
 
+/**
+ * Active singleton — set when a GameSocket is constructed, cleared on destroy.
+ * UI components that don't have a socket prop (e.g. Hotbar) can grab it via
+ * `getActiveSocket()`. There is at most one live socket per tab.
+ */
+let activeSocket: GameSocket | null = null;
+export function getActiveSocket(): GameSocket | null {
+  return activeSocket;
+}
+
 export class GameSocket {
   private ws: WebSocket | null = null;
   private devUser: string;
@@ -64,6 +74,7 @@ export class GameSocket {
   constructor(wsUrl: string, devUser: string) {
     this.wsUrl = wsUrl;
     this.devUser = devUser;
+    activeSocket = this;
   }
 
   connect(): void {
@@ -369,5 +380,6 @@ export class GameSocket {
     this.destroyed = true;
     this.ws?.close();
     this.ws = null;
+    if (activeSocket === this) activeSocket = null;
   }
 }

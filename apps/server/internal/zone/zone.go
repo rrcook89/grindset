@@ -77,6 +77,12 @@ type Player struct {
 	// HP. 0 = dead → respawn at zone home next tick.
 	HP    uint16
 	MaxHP uint16
+
+	// Abilities. NextSwingMul=2 means the next melee swing deals 2× damage
+	// (consumed by combat resolution). AbilityCooldowns is keyed by slot index;
+	// values are remaining ticks.
+	NextSwingMul     uint16
+	AbilityCooldowns map[uint8]int
 }
 
 type intent struct {
@@ -129,9 +135,11 @@ func (z *Zone) Join(name string) (*Player, protocol.Welcome) {
 		TargetX: spawnX,
 		TargetY: spawnY,
 		Outbox:  make(chan []byte, 64),
-		SkillXP: map[skills.Name]int64{},
-		HP:      100,
-		MaxHP:   100,
+		SkillXP:          map[skills.Name]int64{},
+		HP:               100,
+		MaxHP:            100,
+		NextSwingMul:     1,
+		AbilityCooldowns: map[uint8]int{},
 	}
 	z.players[id] = p
 	z.byName[name] = id

@@ -15,6 +15,7 @@ const (
 	OpCombatTarget Opcode = 0x30
 	OpCombatHit    Opcode = 0x31
 	OpCombatDeath  Opcode = 0x32
+	OpAbilityUse   Opcode = 0x34
 
 	// skilling / interaction  0x50–0x6F
 	OpSkillStart   Opcode = 0x50

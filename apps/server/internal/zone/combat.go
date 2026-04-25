@@ -157,6 +157,11 @@ func (z *Zone) resolveCombatLocked() {
 			if randInRange(0, 99) < 10 {
 				damage *= 2
 			}
+			// Heavy Strike (ability): multiplies next swing, then resets.
+			if p.NextSwingMul > 1 {
+				damage *= p.NextSwingMul
+				p.NextSwingMul = 1
+			}
 		}
 
 		// Apply.
