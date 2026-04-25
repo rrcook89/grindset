@@ -45,6 +45,16 @@ export function App() {
   return (
     <div className="relative h-full w-full overflow-hidden bg-obsidian">
       <canvas ref={canvasRef} className="block h-full w-full" />
+      {/* Vignette overlay — radial gradient that darkens screen corners,
+          giving focus to the centre where the player sits. Pure CSS, sits
+          above canvas but below interactive UI via pointer-events:none. */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(ellipse at center, transparent 35%, rgba(0,0,0,0.45) 100%)",
+        }}
+      />
       <UIShell />
     </div>
   );

@@ -8,6 +8,7 @@ import { FloatingTextRenderer } from "./FloatingTextRenderer";
 import { TargetHighlightRenderer, type HighlightTarget } from "./TargetHighlightRenderer";
 import { AmbientParticles } from "./AmbientParticles";
 import { DecorationRenderer } from "./DecorationRenderer";
+import { WaterRipples } from "./WaterRipples";
 import { Input } from "./Input";
 import type { GameSocket } from "../net/Socket";
 import { useGameStore } from "../state/store";
@@ -109,6 +110,12 @@ export class Game {
     const nodeRenderer = new NodeRenderer();
     worldContainer.addChild(nodeRenderer.container);
 
+    // Water ripples animate on top of fishing-spot nodes — separate
+    // container so we can re-stroke each frame without the static node
+    // re-rendering.
+    const ripples = new WaterRipples();
+    worldContainer.addChild(ripples.container);
+
     const entityRenderer = new EntityRenderer();
     worldContainer.addChild(entityRenderer.container);
 
@@ -162,6 +169,7 @@ export class Game {
       entityRenderer.tick(deltaMs);
       floatRenderer.tick();
       ambient.tick();
+      ripples.tick();
 
       // Target highlight rings — recompute every frame so they pulse
       // and follow moving mobs.
@@ -220,6 +228,7 @@ export class Game {
       entityRenderer.updatePlayers(localPlayer, otherPlayers, names);
       entityRenderer.updateMobs(mobs);
       nodeRenderer.updateNodes(nodes);
+      ripples.syncSpots(nodes);
       floatRenderer.update(floats);
 
       // Build decorations once we have a node set to avoid them.
