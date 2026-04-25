@@ -17,6 +17,18 @@ import { ENTITY_KIND_MOB, ENTITY_KIND_NODE, type EntityPosition } from "../net/p
 import type { NodeEntity } from "../game/NodeRenderer";
 import type { MobEntity } from "../game/EntityRenderer";
 
+export interface FloatingText {
+  id: string;
+  /** Tile coords (renderer multiplies by TILE_SIZE) */
+  tileX: number;
+  tileY: number;
+  text: string;
+  /** Hex color (e.g. 0x3bd67a) */
+  color: number;
+  /** Wall-clock ms when this float was born */
+  born: number;
+}
+
 // ── Dev-only stub nodes (gateway wiring will replace with server data) ────────
 // Positions relative to spawn (25,25): rocks nearby, trees NE, fishing spots S.
 const DEV_NODES: NodeEntity[] = [
@@ -30,6 +42,7 @@ const DEV_NODES: NodeEntity[] = [
   { id: 2_000_007, kind: "spot", x: 22, y: 32 },
   { id: 2_000_008, kind: "rock", x: 21, y: 25 },
   { id: 2_000_009, kind: "tree", x: 27, y: 27 },
+  { id: 2_000_100, kind: "bank", x: 26, y: 25 },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -109,6 +122,12 @@ interface GameState {
   // Mobs
   mobs: Map<number, MobEntity>;
 
+  // Floating text on canvas (XP gains, $GRIND drops, item drops)
+  floats: FloatingText[];
+
+  // Currently-clicked skill node (visual highlight only, not authoritative).
+  skillTargetId: number | null;
+
   // Auth
   jwt: string | null;
 
@@ -125,6 +144,12 @@ interface GameState {
   // Mobs
   setMobs: (mobs: MobEntity[]) => void;
   removeMob: (id: number) => void;
+
+  // Floating text
+  pushFloat: (float: Omit<FloatingText, "id" | "born">) => void;
+  clearExpiredFloats: () => void;
+
+  setSkillTarget: (id: number | null) => void;
 
   // Skills
   applySkillUpdate: (skill: Skill) => void;
@@ -174,6 +199,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   otherPlayers: new Map(),
   nodes: new Map(DEV_NODES.map((n) => [n.id, n])),
   mobs: new Map(),
+  floats: [],
+  skillTargetId: null,
 
   skills: defaultSkills(),
   levelUpFlash: null,
@@ -280,6 +307,23 @@ export const useGameStore = create<GameState>((set, get) => ({
       next.delete(id);
       return { mobs: next };
     }),
+
+  // ── Floating text ───────────────────────────────────────────────────────────
+
+  pushFloat: (float) =>
+    set((s) => ({
+      floats: [
+        ...s.floats,
+        { ...float, id: `${Date.now()}-${Math.random()}`, born: Date.now() },
+      ].slice(-30),
+    })),
+
+  clearExpiredFloats: () => {
+    const now = Date.now();
+    set((s) => ({ floats: s.floats.filter((f) => now - f.born < 1500) }));
+  },
+
+  setSkillTarget: (id) => set({ skillTargetId: id }),
 
   // ── Skills ──────────────────────────────────────────────────────────────────
 

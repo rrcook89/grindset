@@ -3,7 +3,7 @@ import { TILE_SIZE } from "./TileRenderer";
 
 export interface NodeEntity {
   id: number;
-  kind: "rock" | "tree" | "spot";
+  kind: "rock" | "tree" | "spot" | "bank";
   x: number;
   y: number;
 }
@@ -59,6 +59,9 @@ export class NodeRenderer {
       case "spot":
         drawSpot(g);
         break;
+      case "bank":
+        drawBank(g);
+        break;
     }
   }
 }
@@ -83,6 +86,23 @@ function drawTree(g: Graphics): void {
   g.circle(CX - 4, CY - 8, 9).fill({ color: 0x3d7a25 });
   // Outline
   g.circle(CX, CY - 4, 18).stroke({ color: 0x1a3a0f, width: 1.5 });
+}
+
+function drawBank(g: Graphics): void {
+  // Wooden chest with gold trim
+  // Body
+  g.roundRect(CX - 14, CY - 6, 28, 18, 2).fill({ color: 0x6b3a1f });
+  // Lid
+  g.roundRect(CX - 14, CY - 14, 28, 10, 2).fill({ color: 0x7a4a25 });
+  // Gold trim band
+  g.rect(CX - 14, CY - 6, 28, 2).fill({ color: 0xf5c14b });
+  // Lock plate
+  g.rect(CX - 3, CY - 3, 6, 6).fill({ color: 0xf5c14b });
+  g.rect(CX - 1, CY - 1, 2, 4).fill({ color: 0x6b3a1f });
+  // Outline
+  g.roundRect(CX - 14, CY - 14, 28, 26, 2).stroke({ color: 0x3d2010, width: 1.5 });
+  // "B" label above
+  g.circle(CX, CY - 22, 7).fill({ color: 0xf5c14b, alpha: 0.85 });
 }
 
 function drawSpot(g: Graphics): void {

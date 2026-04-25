@@ -129,6 +129,22 @@ export class GameSocket {
           type: p.damage === 0 ? "heal" : "damage",
           timestamp: Date.now(),
         });
+        // Canvas damage float at the target's world position.
+        const stateNow = useGameStore.getState();
+        const targetMob = stateNow.mobs.get(p.targetId);
+        const targetTile = targetMob
+          ? { x: targetMob.x, y: targetMob.y }
+          : p.targetId === stateNow.localPlayer?.id && stateNow.localPlayer
+            ? { x: stateNow.localPlayer.x, y: stateNow.localPlayer.y }
+            : null;
+        if (targetTile) {
+          store.pushFloat({
+            tileX: targetTile.x,
+            tileY: targetTile.y,
+            text: p.damage === 0 ? "miss" : `-${p.damage}`,
+            color: p.damage === 0 ? 0x9ca3af : 0xe04545, // grey on miss, loss-red on hit
+          });
+        }
         // HP propagation:
         const lp = useGameStore.getState().localPlayer;
         if (lp && p.targetId === lp.id) {
@@ -173,8 +189,36 @@ export class GameSocket {
             xpToNextLevel: xpForLevel(level + 1) - p.totalXP,
           };
           store.applySkillUpdate(skill);
-          // eslint-disable-next-line no-console
-          console.log(`[GRINDSET] +${p.xpGained} ${name} XP — got ${p.itemDefId}`);
+        }
+        // Float visuals over the local player when something was awarded.
+        const lp = useGameStore.getState().localPlayer;
+        if (lp) {
+          if (p.xpGained > 0 && name) {
+            store.pushFloat({
+              tileX: lp.x,
+              tileY: lp.y,
+              text: `+${p.xpGained} ${name} XP`,
+              color: 0x3bd67a, // gain-green
+            });
+          }
+          if (p.grindDropped > 0n) {
+            const tokens = Number(p.grindDropped) / 1e9;
+            store.pushFloat({
+              tileX: lp.x,
+              tileY: lp.y,
+              text: `+${tokens.toFixed(3)} $GRIND`,
+              color: 0xf5c14b, // ingot-gold
+            });
+          }
+          if (p.itemDefId) {
+            const display = itemDisplay(p.itemDefId);
+            store.pushFloat({
+              tileX: lp.x,
+              tileY: lp.y,
+              text: `+1 ${display.name}`,
+              color: 0xe8d090, // parchment
+            });
+          }
         }
         break;
       }

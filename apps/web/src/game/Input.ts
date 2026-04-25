@@ -46,22 +46,39 @@ export class Input {
 
     if (mobAtTile) {
       this.socket.sendRaw(encodeCombatTarget(mobAtTile.id));
+      useGameStore.getState().setSkillTarget(null);
       this.spawnMarker(tileX, tileY);
       return;
     }
 
-    let nodeAtTile: { id: number } | null = null;
+    let nodeAtTile: { id: number; kind: string } | null = null;
     for (const node of nodes.values()) {
       if (node.x === tileX && node.y === tileY) {
-        nodeAtTile = { id: node.id };
+        nodeAtTile = { id: node.id, kind: node.kind };
         break;
       }
     }
 
     if (nodeAtTile) {
-      this.socket.sendRaw(encodeSkillStart(nodeAtTile.id));
+      if (nodeAtTile.kind === "bank") {
+        // Walk to the bank tile; if already adjacent, open immediately.
+        const lp = useGameStore.getState().localPlayer;
+        const adjacent = lp
+          ? Math.max(Math.abs(lp.x - tileX), Math.abs(lp.y - tileY)) <= 1
+          : false;
+        if (adjacent) {
+          useGameStore.getState().setBankOpen(true);
+        } else {
+          this.socket.sendRaw(encodeMoveIntent(tileX, tileY));
+          // Auto-open once player arrives — handled by Game.ts proximity check.
+        }
+      } else {
+        this.socket.sendRaw(encodeSkillStart(nodeAtTile.id));
+        useGameStore.getState().setSkillTarget(nodeAtTile.id);
+      }
     } else {
       this.socket.sendRaw(encodeMoveIntent(tileX, tileY));
+      useGameStore.getState().setSkillTarget(null);
     }
     this.spawnMarker(tileX, tileY);
   };
