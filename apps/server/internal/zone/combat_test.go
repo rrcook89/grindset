@@ -145,6 +145,123 @@ func TestSetCombatTargetCancelsSkilling(t *testing.T) {
 	}
 }
 
+// fixedRand returns a sequence of (lo+offset) values where offset rotates
+// through the supplied list. Useful for forcing specific roll outcomes.
+func fixedRand(values ...int) func(lo, hi int) int {
+	idx := 0
+	return func(lo, hi int) int {
+		if hi <= lo {
+			return lo
+		}
+		v := values[idx%len(values)]
+		idx++
+		// Clamp to [lo, hi].
+		if v < lo {
+			v = lo
+		} else if v > hi {
+			v = hi
+		}
+		return v
+	}
+}
+
+func TestPlayerSwingDeterministicHit(t *testing.T) {
+	z := newTestZone()
+	p, _ := z.Join("alice")
+	mob := addTestMob(z, 1_000_900, "marsh_rat", 5, 5, 30, 30)
+
+	// Move alice adjacent to mob and target it.
+	z.mu.Lock()
+	p.X = 5
+	p.Y = 5
+	p.CombatTarget = mob.ID
+	p.AttackCooldown = 0
+	beforeHP := mob.HP
+	z.mu.Unlock()
+
+	// First call → miss-roll picks 99 (>= 10, so NOT a miss).
+	// Second call → damage roll within [1, playerMaxHit] = [1, 8]. Pick 5.
+	// Third call → crit-roll picks 50 (>= 10, so NO crit).
+	// Mobs swing first in resolveCombatLocked: mob's miss-roll(0..99)<15 ?
+	//   Pick 80 = no miss. Then mob damage roll(1..3 for rat) → 1.
+	// So order of randInRange calls per resolveCombatLocked tick:
+	//   mob miss roll, mob damage, player miss, player damage, crit roll.
+	prev := SetRandSource(fixedRand(80, 1, 99, 5, 50))
+	defer SetRandSource(prev)
+
+	z.mu.Lock()
+	z.resolveCombatLocked()
+	z.mu.Unlock()
+
+	z.mu.Lock()
+	defer z.mu.Unlock()
+	if mob.HP != beforeHP-5 {
+		t.Fatalf("expected mob HP to drop by 5; got %d → %d", beforeHP, mob.HP)
+	}
+}
+
+func TestPlayerSwingHeavyStrikeTriples(t *testing.T) {
+	z := newTestZone()
+	p, _ := z.Join("alice")
+	mob := addTestMob(z, 1_000_900, "marsh_rat", 5, 5, 30, 30)
+
+	z.mu.Lock()
+	p.X = 5
+	p.Y = 5
+	p.CombatTarget = mob.ID
+	p.AttackCooldown = 0
+	p.NextSwingMul = 3 // Heavy Strike queued
+	beforeHP := mob.HP
+	z.mu.Unlock()
+
+	// mob miss (80 = no miss), mob dmg 1, player miss roll 99 (no miss),
+	// player damage 4, crit roll 50 (no crit). 4 × heavy-strike(3) = 12.
+	prev := SetRandSource(fixedRand(80, 1, 99, 4, 50))
+	defer SetRandSource(prev)
+
+	z.mu.Lock()
+	z.resolveCombatLocked()
+	z.mu.Unlock()
+
+	z.mu.Lock()
+	defer z.mu.Unlock()
+	if mob.HP != beforeHP-12 {
+		t.Fatalf("expected Heavy Strike × 3 = 12 dmg; got HP drop %d → %d", beforeHP, mob.HP)
+	}
+	if p.NextSwingMul != 1 {
+		t.Fatalf("NextSwingMul should reset to 1 after consuming; got %d", p.NextSwingMul)
+	}
+}
+
+func TestPlayerSwingMissProduces0Damage(t *testing.T) {
+	z := newTestZone()
+	p, _ := z.Join("alice")
+	mob := addTestMob(z, 1_000_900, "marsh_rat", 5, 5, 30, 30)
+
+	z.mu.Lock()
+	p.X = 5
+	p.Y = 5
+	p.CombatTarget = mob.ID
+	p.AttackCooldown = 0
+	beforeHP := mob.HP
+	z.mu.Unlock()
+
+	// mob miss-roll 80 (no miss), mob dmg 1, player miss-roll 5 (< 10 = MISS).
+	// Player misses → no further rolls consumed for damage / crit.
+	prev := SetRandSource(fixedRand(80, 1, 5))
+	defer SetRandSource(prev)
+
+	z.mu.Lock()
+	z.resolveCombatLocked()
+	z.mu.Unlock()
+
+	z.mu.Lock()
+	defer z.mu.Unlock()
+	if mob.HP != beforeHP {
+		t.Fatalf("missed swing should not change mob HP: %d → %d", beforeHP, mob.HP)
+	}
+}
+
 func TestMobLootRollTable(t *testing.T) {
 	cases := []struct{ defID, item string; chance int }{
 		{"marsh_rat", "rat_tail", 30},

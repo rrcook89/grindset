@@ -82,9 +82,28 @@ func addInventoryItem(inv *[28]protocol.InventorySlot, defID string, qty uint32)
 	return -1
 }
 
-// randInRange returns a uniform integer in [lo, hi]. Uses crypto/rand for
-// unpredictability per CLAUDE.md guidance.
+// randSource is the integer source used by combat + skilling rolls. Default
+// is crypto/rand for unpredictability; tests swap it for a deterministic
+// counter via SetRandSource.
+var randSource func(lo, hi int) int = cryptoRandInRange
+
+// SetRandSource overrides the random source. Tests should defer restoring
+// the prior value: prev := SetRandSource(myFn); defer SetRandSource(prev).
+func SetRandSource(fn func(lo, hi int) int) func(lo, hi int) int {
+	prev := randSource
+	if fn != nil {
+		randSource = fn
+	}
+	return prev
+}
+
+// randInRange returns a uniform integer in [lo, hi]. Indirected through
+// randSource so tests can run combat scenarios deterministically.
 func randInRange(lo, hi int) int {
+	return randSource(lo, hi)
+}
+
+func cryptoRandInRange(lo, hi int) int {
 	if hi <= lo {
 		return lo
 	}
