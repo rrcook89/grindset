@@ -127,7 +127,7 @@ func TestChatSayRoundTrip(t *testing.T) {
 }
 
 func TestChatRecvRoundTrip(t *testing.T) {
-	m := ChatRecv{Channel: 1, SenderID: 7, Sender: "gandalf", Body: "you shall not pass"}
+	m := ChatRecv{Channel: 1, Sender: "gandalf", Body: "you shall not pass"}
 	got, err := DecodeChatRecv(mustPayload(t, EncodeChatRecv(m)))
 	if err != nil || got != m {
 		t.Fatalf("got %+v", got)

@@ -103,8 +103,23 @@ func (g *Gateway) readLoop(ctx context.Context, c *websocket.Conn, p *zone.Playe
 				continue
 			}
 			g.z.QueueMove(p.ID, m.X, m.Y)
+		case protocol.OpChatSay:
+			m, err := protocol.DecodeChatSay(frame.Payload)
+			if err != nil || m.Body == "" {
+				continue
+			}
+			body := m.Body
+			if len(body) > 256 {
+				body = body[:256]
+			}
+			out := protocol.EncodeChatRecv(protocol.ChatRecv{
+				Channel: m.Channel,
+				Sender:  p.Name,
+				Body:    body,
+			})
+			g.z.BroadcastAll(out)
 		case protocol.OpHello:
-			// ignore: we already authenticated via query param
+			// already authenticated via query param / JWT
 		default:
 			// unknown opcode: silently ignore for now
 		}

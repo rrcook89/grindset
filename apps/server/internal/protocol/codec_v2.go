@@ -348,58 +348,80 @@ const (
 	ChatChannelTrade  = 3
 )
 
+// ChatSay (C→S): channel:u8, body_len:u16 LE, body_utf8
 type ChatSay struct {
 	Channel uint8
 	Body    string
 }
 
 func EncodeChatSay(m ChatSay) []byte {
-	buf := make([]byte, 0, 1+len(m.Body))
-	buf = append(buf, m.Channel)
-	buf = append(buf, []byte(m.Body)...)
+	body := []byte(m.Body)
+	buf := make([]byte, 3+len(body))
+	buf[0] = m.Channel
+	binary.LittleEndian.PutUint16(buf[1:3], uint16(len(body)))
+	copy(buf[3:], body)
 	return Encode(OpChatSay, buf)
 }
 
 func DecodeChatSay(p []byte) (ChatSay, error) {
-	if len(p) < 1 {
+	if len(p) < 3 {
 		return ChatSay{}, ErrShort
 	}
-	return ChatSay{Channel: p[0], Body: string(p[1:])}, nil
+	bodyLen := int(binary.LittleEndian.Uint16(p[1:3]))
+	if len(p) < 3+bodyLen {
+		return ChatSay{}, ErrShort
+	}
+	return ChatSay{
+		Channel: p[0],
+		Body:    string(p[3 : 3+bodyLen]),
+	}, nil
 }
 
+// ChatRecv (S→C): channel:u8, sender_len:u8, sender_utf8, body_len:u16 LE, body_utf8
 type ChatRecv struct {
-	Channel  uint8
-	SenderID uint32
-	Sender   string
-	Body     string
+	Channel uint8
+	Sender  string
+	Body    string
 }
 
 func EncodeChatRecv(m ChatRecv) []byte {
-	buf := make([]byte, 0, 5+len(m.Sender)+len(m.Body))
+	sender := []byte(m.Sender)
+	if len(sender) > 255 {
+		sender = sender[:255]
+	}
+	body := []byte(m.Body)
+	buf := make([]byte, 0, 1+1+len(sender)+2+len(body))
 	buf = append(buf, m.Channel)
-	sid := make([]byte, 4)
-	binary.LittleEndian.PutUint32(sid, m.SenderID)
-	buf = append(buf, sid...)
-	buf = writeLPString(buf, m.Sender)
-	buf = append(buf, []byte(m.Body)...)
+	buf = append(buf, byte(len(sender)))
+	buf = append(buf, sender...)
+	bodyLen := make([]byte, 2)
+	binary.LittleEndian.PutUint16(bodyLen, uint16(len(body)))
+	buf = append(buf, bodyLen...)
+	buf = append(buf, body...)
 	return Encode(OpChatRecv, buf)
 }
 
 func DecodeChatRecv(p []byte) (ChatRecv, error) {
-	if len(p) < 5 {
+	if len(p) < 4 {
 		return ChatRecv{}, ErrShort
 	}
-	m := ChatRecv{
-		Channel:  p[0],
-		SenderID: binary.LittleEndian.Uint32(p[1:5]),
-	}
-	sender, rest, ok := readLPString(p[5:])
-	if !ok {
+	channel := p[0]
+	senderLen := int(p[1])
+	if len(p) < 2+senderLen+2 {
 		return ChatRecv{}, ErrShort
 	}
-	m.Sender = sender
-	m.Body = string(rest)
-	return m, nil
+	sender := string(p[2 : 2+senderLen])
+	off := 2 + senderLen
+	bodyLen := int(binary.LittleEndian.Uint16(p[off : off+2]))
+	off += 2
+	if len(p) < off+bodyLen {
+		return ChatRecv{}, ErrShort
+	}
+	return ChatRecv{
+		Channel: channel,
+		Sender:  sender,
+		Body:    string(p[off : off+bodyLen]),
+	}, nil
 }
 
 // ── Wallet 0xA0–0xA1 ───────────────────────────────────────────────────────

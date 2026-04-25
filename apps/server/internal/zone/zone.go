@@ -24,6 +24,8 @@ type Zone struct {
 
 	mu        sync.Mutex
 	players   map[uint32]*Player
+	mobs      map[uint32]*Mob
+	nodes     map[uint32]*SkillNode
 	intents   []intent
 	byName    map[string]uint32
 	nextID    atomic.Uint32
@@ -46,15 +48,20 @@ type intent struct {
 }
 
 func New(id string, w, h uint16, tick time.Duration, log *slog.Logger) *Zone {
-	return &Zone{
+	z := &Zone{
 		id:      id,
 		w:       w,
 		h:       h,
 		tick:    tick,
 		log:     log,
 		players: map[uint32]*Player{},
+		mobs:    map[uint32]*Mob{},
+		nodes:   map[uint32]*SkillNode{},
 		byName:  map[string]uint32{},
 	}
+	z.loadMobs(nil)
+	z.loadNodes()
+	return z
 }
 
 func (z *Zone) Width() uint16  { return z.w }
@@ -119,12 +126,18 @@ func (z *Zone) QueueMove(pid uint32, tx, ty uint16) {
 	z.mu.Unlock()
 }
 
-// snapshot returns a copy of players' current positions for broadcasting.
+// snapshotLocked returns positions for all players, mobs, and nodes.
 // Caller must hold z.mu.
 func (z *Zone) snapshotLocked() []protocol.EntityPos {
-	out := make([]protocol.EntityPos, 0, len(z.players))
+	out := make([]protocol.EntityPos, 0, len(z.players)+len(z.mobs)+len(z.nodes))
 	for _, p := range z.players {
 		out = append(out, protocol.EntityPos{ID: p.ID, X: p.X, Y: p.Y})
+	}
+	for _, m := range z.mobs {
+		out = append(out, protocol.EntityPos{ID: m.ID, X: m.X, Y: m.Y})
+	}
+	for _, n := range z.nodes {
+		out = append(out, protocol.EntityPos{ID: n.ID, X: n.X, Y: n.Y})
 	}
 	return out
 }

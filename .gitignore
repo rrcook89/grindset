@@ -50,3 +50,8 @@ coverage/
 
 # IJFW
 .ijfw/
+.playwright-mcp/
+*.png
+baseline.png
+after-click.png
+far-west.png

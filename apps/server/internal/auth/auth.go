@@ -110,6 +110,10 @@ func VerifyJWT(tokenStr string) (Identity, error) {
 // FromRequest extracts a Bearer JWT from the Authorization header or ?token= query param.
 // WS upgrade requests typically carry auth in the query string since browsers can't
 // set custom headers during WebSocket handshake.
+//
+// As a Sprint-1 dev convenience, ?dev_user=<name> is ALSO accepted unless
+// AUTH_STRICT=1 is set in the environment. The dev path logs a warning every
+// time it is used.
 func FromRequest(r *http.Request) (Identity, error) {
 	// 1. Authorization: Bearer <token>
 	if h := r.Header.Get("Authorization"); strings.HasPrefix(h, "Bearer ") {
@@ -118,6 +122,19 @@ func FromRequest(r *http.Request) (Identity, error) {
 	// 2. ?token=<jwt> (WebSocket connect path)
 	if t := r.URL.Query().Get(magicLinkParam); t != "" {
 		return VerifyJWT(t)
+	}
+	// 3. ?dev_user=<name> dev fallback (disabled by AUTH_STRICT=1).
+	if os.Getenv("AUTH_STRICT") != "1" {
+		if u := strings.TrimSpace(r.URL.Query().Get("dev_user")); u != "" {
+			if len(u) > 32 {
+				u = u[:32]
+			}
+			slog.Warn("AUTH dev fallback used — set AUTH_STRICT=1 for production", "dev_user", u)
+			return Identity{
+				AccountID: "dev-" + u,
+				Email:     u + "@dev.grindset.local",
+			}, nil
+		}
 	}
 	return Identity{}, ErrUnauthenticated
 }

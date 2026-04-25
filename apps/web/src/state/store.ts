@@ -14,6 +14,23 @@ import type {
   Ability,
 } from "../net/types";
 import type { EntityPosition } from "../net/protocol";
+import type { NodeEntity } from "../game/NodeRenderer";
+import type { MobEntity } from "../game/EntityRenderer";
+
+// ── Dev-only stub nodes (gateway wiring will replace with server data) ────────
+// Positions relative to spawn (25,25): rocks nearby, trees NE, fishing spots S.
+const DEV_NODES: NodeEntity[] = [
+  { id: 2_000_000, kind: "rock", x: 22, y: 22 },
+  { id: 2_000_001, kind: "rock", x: 23, y: 23 },
+  { id: 2_000_002, kind: "rock", x: 24, y: 24 },
+  { id: 2_000_003, kind: "tree", x: 28, y: 20 },
+  { id: 2_000_004, kind: "tree", x: 30, y: 22 },
+  { id: 2_000_005, kind: "tree", x: 32, y: 24 },
+  { id: 2_000_006, kind: "spot", x: 20, y: 30 },
+  { id: 2_000_007, kind: "spot", x: 22, y: 32 },
+  { id: 2_000_008, kind: "rock", x: 21, y: 25 },
+  { id: 2_000_009, kind: "tree", x: 27, y: 27 },
+];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -86,6 +103,12 @@ interface GameState {
   // Hotbar abilities
   abilities: Ability[];
 
+  // Skill nodes (populated by gateway when wired; dev stub pre-fills)
+  nodes: Map<number, NodeEntity>;
+
+  // Mobs
+  mobs: Map<number, MobEntity>;
+
   // Auth
   jwt: string | null;
 
@@ -94,6 +117,14 @@ interface GameState {
   setConnectionStatus: (status: ConnectionStatus) => void;
   setLocalPlayer: (player: Player) => void;
   applyPositionDelta: (entities: EntityPosition[]) => void;
+
+  // Nodes
+  setNodes: (nodes: NodeEntity[]) => void;
+  removeNode: (id: number) => void;
+
+  // Mobs
+  setMobs: (mobs: MobEntity[]) => void;
+  removeMob: (id: number) => void;
 
   // Skills
   applySkillUpdate: (skill: Skill) => void;
@@ -141,6 +172,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   connectionStatus: "disconnected",
   localPlayer: null,
   otherPlayers: new Map(),
+  nodes: new Map(DEV_NODES.map((n) => [n.id, n])),
+  mobs: new Map(),
 
   skills: defaultSkills(),
   levelUpFlash: null,
@@ -193,6 +226,28 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
     set({ otherPlayers: new Map(next) });
   },
+
+  // ── Nodes ───────────────────────────────────────────────────────────────────
+
+  setNodes: (nodes) => set({ nodes: new Map(nodes.map((n) => [n.id, n])) }),
+
+  removeNode: (id) =>
+    set((s) => {
+      const next = new Map(s.nodes);
+      next.delete(id);
+      return { nodes: next };
+    }),
+
+  // ── Mobs ────────────────────────────────────────────────────────────────────
+
+  setMobs: (mobs) => set({ mobs: new Map(mobs.map((m) => [m.id, m])) }),
+
+  removeMob: (id) =>
+    set((s) => {
+      const next = new Map(s.mobs);
+      next.delete(id);
+      return { mobs: next };
+    }),
 
   // ── Skills ──────────────────────────────────────────────────────────────────
 

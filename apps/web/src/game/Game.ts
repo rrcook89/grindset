@@ -1,6 +1,7 @@
 import { Application, Container } from "pixi.js";
 import { TileRenderer, TILE_SIZE, GRID_W, GRID_H } from "./TileRenderer";
 import { EntityRenderer } from "./EntityRenderer";
+import { NodeRenderer } from "./NodeRenderer";
 import { Input } from "./Input";
 import type { GameSocket } from "../net/Socket";
 import { useGameStore } from "../state/store";
@@ -14,6 +15,7 @@ export class Game {
   private worldContainer: Container;
   private tileRenderer: TileRenderer;
   private entityRenderer: EntityRenderer;
+  private nodeRenderer: NodeRenderer;
   private input: Input;
   private unsubscribe: () => void;
 
@@ -22,6 +24,7 @@ export class Game {
     worldContainer: Container,
     tileRenderer: TileRenderer,
     entityRenderer: EntityRenderer,
+    nodeRenderer: NodeRenderer,
     input: Input,
     unsubscribe: () => void,
   ) {
@@ -29,6 +32,7 @@ export class Game {
     this.worldContainer = worldContainer;
     this.tileRenderer = tileRenderer;
     this.entityRenderer = entityRenderer;
+    this.nodeRenderer = nodeRenderer;
     this.input = input;
     this.unsubscribe = unsubscribe;
   }
@@ -60,23 +64,34 @@ export class Game {
     const tileRenderer = new TileRenderer();
     worldContainer.addChild(tileRenderer.container);
 
+    // Nodes sit between tiles and entities
+    const nodeRenderer = new NodeRenderer();
+    worldContainer.addChild(nodeRenderer.container);
+
     const entityRenderer = new EntityRenderer();
     worldContainer.addChild(entityRenderer.container);
 
-    const input = new Input(worldContainer, socket);
+    const input = new Input(worldContainer, socket, app.ticker);
 
-    // Subscribe to store changes → update entity renderer each frame
+    // Subscribe to store changes → update renderers each frame
     let needsRender = true;
     const unsubscribe = useGameStore.subscribe(() => {
       needsRender = true;
     });
 
-    app.ticker.add(() => {
+    app.ticker.add((ticker) => {
+      const deltaMs = ticker.deltaMS;
+
+      // Always tick animation (independent of store changes)
+      entityRenderer.tick(deltaMs);
+
       if (!needsRender) return;
       needsRender = false;
 
-      const { localPlayer, otherPlayers } = useGameStore.getState();
+      const { localPlayer, otherPlayers, nodes, mobs } = useGameStore.getState();
       entityRenderer.updatePlayers(localPlayer, otherPlayers);
+      entityRenderer.updateMobs(mobs);
+      nodeRenderer.updateNodes(nodes);
 
       // Camera: center viewport on local player
       if (localPlayer) {
@@ -93,7 +108,7 @@ export class Game {
       }
     });
 
-    return new Game(app, worldContainer, tileRenderer, entityRenderer, input, unsubscribe);
+    return new Game(app, worldContainer, tileRenderer, entityRenderer, nodeRenderer, input, unsubscribe);
   }
 
   // Unused but satisfies TS noUnusedLocals via reference

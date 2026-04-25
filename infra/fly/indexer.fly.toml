@@ -1,0 +1,34 @@
+# Fly.io app config for the GRINDSET chain indexer.
+# Reads Bridge program events via Helius webhook, writes to wallet_ledger.
+
+app = "grindset-indexer"
+primary_region = "lhr"
+
+[build]
+  dockerfile = "../../apps/indexer/Dockerfile"
+
+[env]
+  HTTP_ADDR = ":8081"
+
+# Set via fly secrets:
+#   DATABASE_URL, HELIUS_API_KEY, BRIDGE_PROGRAM_ID
+
+[[services]]
+  internal_port = 8081
+  protocol = "tcp"
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [services.concurrency]
+    type = "requests"
+    soft_limit = 100
+    hard_limit = 150
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

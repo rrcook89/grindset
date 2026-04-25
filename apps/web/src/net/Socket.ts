@@ -47,6 +47,9 @@ export class GameSocket {
   }
 
   connect(): void {
+    // Guard: prevent late Game.create.then() from opening a socket on an
+    // already-destroyed instance (React StrictMode double-mount race).
+    if (this.destroyed) return;
     const jwt = useGameStore.getState().jwt;
     const authParam = jwt
       ? `token=${encodeURIComponent(jwt)}`
