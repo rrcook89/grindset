@@ -94,6 +94,53 @@ function xpForLevel(level: number): number {
   return Math.floor(total / 4);
 }
 
+// ── Persisted slice (localStorage-backed) ─────────────────────────────────────
+//
+// Quest progress + cumulative session metrics survive reloads. Inventory and
+// wallet are NOT persisted because the server is authoritative and will
+// re-broadcast them on connect.
+
+const PERSIST_KEY = "grindset_persist_v1";
+
+interface PersistedSlice {
+  quests: Quest[];
+  totalKills: number;
+  totalGrindEarned: string; // BigInt serialised as decimal string
+}
+
+function loadPersisted(): PersistedSlice | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(PERSIST_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw) as Partial<PersistedSlice>;
+    if (!data.quests || !Array.isArray(data.quests)) return null;
+    return {
+      quests: data.quests as Quest[],
+      totalKills: data.totalKills ?? 0,
+      totalGrindEarned: data.totalGrindEarned ?? "0",
+    };
+  } catch {
+    return null;
+  }
+}
+
+function savePersisted(s: { quests: Quest[]; totalKills: number; totalGrindEarned: bigint }): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(
+      PERSIST_KEY,
+      JSON.stringify({
+        quests: s.quests,
+        totalKills: s.totalKills,
+        totalGrindEarned: s.totalGrindEarned.toString(),
+      }),
+    );
+  } catch {
+    // Ignore quota / private-mode failures.
+  }
+}
+
 function starterQuests(): Quest[] {
   return [
     {
@@ -272,8 +319,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   skillTargetId: null,
   lastSwing: null,
   sessionStart: Date.now(),
-  totalKills: 0,
-  totalGrindEarned: 0n,
+  totalKills: loadPersisted()?.totalKills ?? 0,
+  totalGrindEarned: BigInt(loadPersisted()?.totalGrindEarned ?? "0"),
   equippedWeapon: null,
 
   skills: defaultSkills(),
@@ -285,7 +332,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   wallet: { balance: 0n, ledger: [] },
 
-  quests: starterQuests(),
+  quests: (loadPersisted()?.quests) ?? starterQuests(),
 
   geOrders: [],
   geOpen: false,
@@ -567,3 +614,31 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ jwt });
   },
 }));
+
+// Persist quests / totalKills / totalGrindEarned to localStorage on every
+// store change. Throttled to ~1 write per 500ms so a rapid stream of XP
+// ticks doesn't hammer disk.
+if (typeof window !== "undefined") {
+  let lastQuests: unknown = null;
+  let lastKills = -1;
+  let lastEarned = -1n;
+  let pending: ReturnType<typeof setTimeout> | null = null;
+  useGameStore.subscribe((s) => {
+    if (s.quests === lastQuests && s.totalKills === lastKills && s.totalGrindEarned === lastEarned) {
+      return;
+    }
+    lastQuests = s.quests;
+    lastKills = s.totalKills;
+    lastEarned = s.totalGrindEarned;
+    if (pending) return;
+    pending = setTimeout(() => {
+      pending = null;
+      const cur = useGameStore.getState();
+      savePersisted({
+        quests: cur.quests,
+        totalKills: cur.totalKills,
+        totalGrindEarned: cur.totalGrindEarned,
+      });
+    }, 500);
+  });
+}
