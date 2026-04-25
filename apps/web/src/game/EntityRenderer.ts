@@ -1,10 +1,11 @@
 import { Graphics, Container, Text } from "pixi.js";
 import type { Player } from "../net/types";
-import { TILE_SIZE } from "./TileRenderer";
+import { tileToIso, tileDepth, HALF_H } from "./projection";
 
-// Sprite bounding box per art-pipeline spec: 64×96px
-const SPRITE_W = 64;
-const SPRITE_H = 96;
+// Sprite bounding box. The sprite is drawn so its FEET sit at the tile
+// centre — i.e. anchor.set(0.5, 1) on the bounding box.
+const SPRITE_W = 56;
+const SPRITE_H = 86;
 
 // Palette (02-branding.md)
 const COLOR_SELF_BODY   = 0xf5c14b; // ingot gold — bright body
@@ -60,10 +61,17 @@ interface SwingState {
   born: number;
 }
 
+/**
+ * Tile centre → top-left pixel of a SPRITE_W × SPRITE_H bounding box. The
+ * sprite is drawn so its bottom-centre (the feet) lines up with the diamond
+ * tile centre, plus a small downward offset so the sprite stands ON the
+ * front edge of the diamond rather than floating above it.
+ */
 function tileToPx(tileX: number, tileY: number): { x: number; y: number } {
+  const c = tileToIso(tileX, tileY);
   return {
-    x: tileX * TILE_SIZE + (TILE_SIZE - SPRITE_W) / 2,
-    y: tileY * TILE_SIZE + (TILE_SIZE - SPRITE_H) / 2,
+    x: c.x - SPRITE_W / 2,
+    y: c.y + HALF_H - SPRITE_H,
   };
 }
 
@@ -74,6 +82,8 @@ export class EntityRenderer {
 
   constructor() {
     this.container = new Container();
+    // Iso depth-sort: sprites with larger (col + row) draw in front.
+    this.container.sortableChildren = true;
   }
 
   /** Trigger a lunge animation on the attacker's sprite toward the target tile. */
@@ -137,6 +147,13 @@ export class EntityRenderer {
         entry.label.x = baseX + lx + SPRITE_W / 2;
         entry.label.y = baseY + bob + ly - 14;
       }
+
+      // Iso depth: prefer the lerp's CURRENT tile (round to nearest).
+      const liveCol = Math.round(entry.prevTileX);
+      const liveRow = Math.round(entry.prevTileY);
+      entry.g.zIndex = tileDepth(liveCol, liveRow) * 10;
+      entry.hpBar.zIndex = entry.g.zIndex + 1;
+      if (entry.label) entry.label.zIndex = entry.g.zIndex + 2;
     }
   }
 

@@ -1,5 +1,7 @@
 import { Application, Container } from "pixi.js";
-import { TileRenderer, TILE_SIZE, GRID_W, GRID_H } from "./TileRenderer";
+import { TileRenderer } from "./TileRenderer";
+import { tileToIso, GRID_W, GRID_H, HALF_W, HALF_H } from "./projection";
+import { activeTheme, onThemeChange } from "./Theme";
 import { EntityRenderer } from "./EntityRenderer";
 import { NodeRenderer } from "./NodeRenderer";
 import { FloatingTextRenderer } from "./FloatingTextRenderer";
@@ -51,8 +53,8 @@ export class Game {
     await app.init({
       canvas,
       resizeTo: canvas.parentElement ?? canvas,
-      backgroundColor: 0x0b0f14,
-      antialias: false,
+      backgroundColor: activeTheme().background,
+      antialias: true,
       autoDensity: true,
       resolution: window.devicePixelRatio ?? 1,
     });
@@ -61,17 +63,26 @@ export class Game {
     const worldContainer = new Container();
     app.stage.addChild(worldContainer);
 
-    // Hit area covers full grid so clicks outside visible tiles still register
+    // Hit area covers the iso world's bounding box. Since col=0..GRID_W-1
+    // and row=0..GRID_H-1, screen-x ranges from -(GRID_H-1)*HALF_W to
+    // +(GRID_W-1)*HALF_W and screen-y from 0 to (GRID_W+GRID_H-2)*HALF_H.
+    const xMin = -(GRID_H - 1) * HALF_W - HALF_W;
+    const xMax = (GRID_W - 1) * HALF_W + HALF_W;
+    const yMax = (GRID_W + GRID_H - 2) * HALF_H + HALF_H;
     worldContainer.hitArea = {
       contains(x: number, y: number): boolean {
-        return (
-          x >= 0 && y >= 0 && x <= GRID_W * TILE_SIZE && y <= GRID_H * TILE_SIZE
-        );
+        return x >= xMin && x <= xMax && y >= -HALF_H && y <= yMax;
       },
     };
 
     const tileRenderer = new TileRenderer();
     worldContainer.addChild(tileRenderer.container);
+
+    // Re-render tiles + repaint canvas background when the theme changes.
+    const offTheme = onThemeChange(() => {
+      tileRenderer.rebuild();
+      app.renderer.background.color = activeTheme().background;
+    });
 
     // Target highlight ring sits between tiles and nodes/entities so it
     // appears under the feet of mobs and around skill nodes.
@@ -93,9 +104,13 @@ export class Game {
 
     // Subscribe to store changes → update renderers each frame
     let needsRender = true;
-    const unsubscribe = useGameStore.subscribe(() => {
+    const unsubscribeStore = useGameStore.subscribe(() => {
       needsRender = true;
     });
+    const unsubscribe = () => {
+      unsubscribeStore();
+      offTheme();
+    };
 
     let lastFloatSweep = 0;
     let lastSwingBorn = 0;
@@ -185,18 +200,11 @@ export class Game {
       nodeRenderer.updateNodes(nodes);
       floatRenderer.update(floats);
 
-      // Camera: center viewport on local player
+      // Camera: centre viewport on the local player's iso position.
       if (localPlayer) {
-        const playerPxX = localPlayer.x * TILE_SIZE + TILE_SIZE / 2;
-        const playerPxY = localPlayer.y * TILE_SIZE + TILE_SIZE / 2;
-        const targetX = app.screen.width / 2 - playerPxX;
-        const targetY = app.screen.height / 2 - playerPxY;
-
-        // Clamp so we don't show void beyond grid edges
-        const minX = Math.min(0, app.screen.width - GRID_W * TILE_SIZE);
-        const minY = Math.min(0, app.screen.height - GRID_H * TILE_SIZE);
-        worldContainer.x = Math.max(minX, Math.min(0, targetX));
-        worldContainer.y = Math.max(minY, Math.min(0, targetY));
+        const c = tileToIso(localPlayer.x, localPlayer.y);
+        worldContainer.x = app.screen.width / 2 - c.x;
+        worldContainer.y = app.screen.height / 2 - c.y;
       }
     });
 

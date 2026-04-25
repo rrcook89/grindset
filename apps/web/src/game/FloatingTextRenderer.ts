@@ -1,5 +1,5 @@
 import { Container, Text } from "pixi.js";
-import { TILE_SIZE } from "./TileRenderer";
+import { tileToIso, HALF_H } from "./projection";
 import type { FloatingText } from "../state/store";
 
 const LIFE_MS = 1500;
@@ -56,10 +56,10 @@ export class FloatingTextRenderer {
     const now = Date.now();
     for (const entry of this.entries.values()) {
       const t = Math.max(0, Math.min(1, (now - entry.born) / LIFE_MS));
-      const baseX = entry.tileX * TILE_SIZE + TILE_SIZE / 2;
-      const baseY = entry.tileY * TILE_SIZE - 4;
-      entry.text.x = baseX;
-      entry.text.y = baseY - t * RISE_PX;
+      const c = tileToIso(entry.tileX, entry.tileY);
+      // Spawn above the tile (one diamond-height up) and rise from there.
+      entry.text.x = c.x;
+      entry.text.y = c.y - HALF_H * 2 - t * RISE_PX;
       entry.text.alpha = 1 - t;
     }
   }

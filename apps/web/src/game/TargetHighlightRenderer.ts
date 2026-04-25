@@ -1,5 +1,5 @@
 import { Container, Graphics } from "pixi.js";
-import { TILE_SIZE } from "./TileRenderer";
+import { tileToIso, HALF_W, HALF_H } from "./projection";
 
 export interface HighlightTarget {
   tileX: number;
@@ -33,12 +33,18 @@ export class TargetHighlightRenderer {
     const alpha = 0.5 + pulse * 0.4;
 
     for (const tgt of targets) {
-      const cx = tgt.tileX * TILE_SIZE + TILE_SIZE / 2;
-      const cy = tgt.tileY * TILE_SIZE + TILE_SIZE / 2;
-      const radius = (TILE_SIZE / 2 - 2) * scale;
+      const c = tileToIso(tgt.tileX, tgt.tileY);
+      const rx = (HALF_W - 4) * scale;
+      const ry = (HALF_H - 2) * scale;
       const color = tgt.kind === "combat" ? COLOR_COMBAT : COLOR_SKILL;
 
-      this.g.circle(cx, cy, radius).stroke({ color, width: 3, alpha });
+      // Diamond-shaped pulsing ring — matches the iso tile footprint.
+      this.g.poly([
+        c.x, c.y - ry,
+        c.x + rx, c.y,
+        c.x, c.y + ry,
+        c.x - rx, c.y,
+      ]).stroke({ color, width: 3, alpha });
     }
   }
 }

@@ -1,5 +1,5 @@
 import { Graphics, Container } from "pixi.js";
-import { TILE_SIZE } from "./TileRenderer";
+import { tileToIso, tileDepth, HALF_H } from "./projection";
 
 export interface NodeEntity {
   id: number;
@@ -10,9 +10,10 @@ export interface NodeEntity {
   y: number;
 }
 
-// Center offset so nodes sit in the middle of a tile
-const CX = TILE_SIZE / 2;
-const CY = TILE_SIZE / 2;
+// Local sprite-space centre — Graphics shapes draw around (CX, CY) and the
+// outer Graphics.x/y is set to position the node at its tile centre.
+const CX = 0;
+const CY = 0;
 
 export class NodeRenderer {
   readonly container: Container;
@@ -20,6 +21,7 @@ export class NodeRenderer {
 
   constructor() {
     this.container = new Container();
+    this.container.sortableChildren = true;
   }
 
   updateNodes(nodes: Map<number, NodeEntity>): void {
@@ -48,8 +50,11 @@ export class NodeRenderer {
     }
 
     g.clear();
-    g.x = node.x * TILE_SIZE;
-    g.y = node.y * TILE_SIZE;
+    const c = tileToIso(node.x, node.y);
+    g.x = c.x;
+    // Anchor the node so its base sits on the front of the diamond.
+    g.y = c.y + HALF_H * 0.5;
+    g.zIndex = tileDepth(node.x, node.y) * 10;
 
     switch (node.kind) {
       case "rock":

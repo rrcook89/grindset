@@ -3,7 +3,7 @@ import { Graphics, Container } from "pixi.js";
 import { encodeMoveIntent, encodeSkillStart, encodeCombatTarget } from "../net/protocol";
 import type { GameSocket } from "../net/Socket";
 import { useGameStore } from "../state/store";
-import { TILE_SIZE } from "./TileRenderer";
+import { isoToTile, tileToIso, GRID_W, GRID_H, tileDepth } from "./projection";
 
 const MARKER_COLOR = 0xe04545; // GRINDSET loss-red
 const MARKER_LIFE_MS = 700;
@@ -28,10 +28,12 @@ export class Input {
 
   private onPointerDown = (e: FederatedPointerEvent): void => {
     const local = e.getLocalPosition(this.worldContainer);
-    const tileX = Math.floor(local.x / TILE_SIZE);
-    const tileY = Math.floor(local.y / TILE_SIZE);
+    // Inverse-iso: pixel → tile (col, row).
+    const t = isoToTile(local.x, local.y);
+    const tileX = Math.floor(t.col + 0.5);
+    const tileY = Math.floor(t.row + 0.5);
 
-    if (tileX < 0 || tileY < 0) return;
+    if (tileX < 0 || tileY < 0 || tileX >= GRID_W || tileY >= GRID_H) return;
 
     // Click priority: mob > node > walk.
     const { nodes, mobs } = useGameStore.getState();
@@ -85,9 +87,10 @@ export class Input {
 
   private spawnMarker(tileX: number, tileY: number): void {
     const g = new Graphics();
-    // Two concentric rings — outer ring expands, inner stays. OSRS-style.
-    g.x = tileX * TILE_SIZE + TILE_SIZE / 2;
-    g.y = tileY * TILE_SIZE + TILE_SIZE / 2;
+    const c = tileToIso(tileX, tileY);
+    g.x = c.x;
+    g.y = c.y;
+    g.zIndex = tileDepth(tileX, tileY) * 10 + 5;
     this.worldContainer.addChild(g);
     this.markers.push({ graphics: g, bornAt: performance.now() });
   }
