@@ -53,6 +53,8 @@ interface SpriteEntry {
   // Last logical tile so we can detect changes.
   prevTileX: number;
   prevTileY: number;
+  /** +1 = facing screen-right (default), -1 = mirrored facing screen-left. */
+  facing: 1 | -1;
 }
 
 interface SwingState {
@@ -141,7 +143,12 @@ export class EntityRenderer {
       const lx = id === activeSwingId ? lungeOffX : 0;
       const ly = id === activeSwingId ? lungeOffY : 0;
 
-      entry.g.x = baseX + lx;
+      // Mirror the sprite around its centre when facing screen-left.
+      // scale.x flips around the local origin (0, 0), so we offset g.x by
+      // SPRITE_W to keep the visual centred on the tile. hpBar + label are
+      // not mirrored — they always read left-to-right.
+      entry.g.scale.x = entry.facing;
+      entry.g.x = baseX + lx + (entry.facing < 0 ? SPRITE_W : 0);
       entry.g.y = baseY + bob + ly;
       entry.hpBar.x = baseX + lx;
       entry.hpBar.y = baseY + bob + ly;
@@ -231,6 +238,7 @@ export class EntityRenderer {
         moveStart: performance.now() - SERVER_TICK_MS, // already arrived
         prevTileX: -1,
         prevTileY: -1,
+        facing: 1,
       };
       this.sprites.set(id, entry);
       // Add in render-order: shadow → hpBar → g (so shadow stays under feet,
@@ -245,6 +253,16 @@ export class EntityRenderer {
 
   private retargetIfMoved(entry: SpriteEntry, tileX: number, tileY: number): void {
     if (tileX === entry.prevTileX && tileY === entry.prevTileY) return;
+    // Direction in iso screen-space is sign of (col - row) deltas. Only flip
+    // the facing when there's a horizontal component — pure vertical moves
+    // (col+row changes only) don't change facing.
+    if (entry.prevTileX !== -1) {
+      const dCol = tileX - entry.prevTileX;
+      const dRow = tileY - entry.prevTileY;
+      const screenDx = dCol - dRow;
+      if (screenDx > 0) entry.facing = 1;
+      else if (screenDx < 0) entry.facing = -1;
+    }
     entry.prevTileX = tileX;
     entry.prevTileY = tileY;
     const tgt = tileToPx(tileX, tileY);
