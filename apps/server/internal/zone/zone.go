@@ -50,6 +50,12 @@ type Player struct {
 
 	// In-memory totals (DB persistence is a later sprint).
 	SkillXP map[skills.Name]int64
+
+	// 28-slot inventory. Empty slots have ItemDefID="".
+	Inventory [28]protocol.InventorySlot
+
+	// $GRIND in base units (9 decimals).
+	GrindBalance int64
 }
 
 type intent struct {

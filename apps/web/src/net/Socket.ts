@@ -16,6 +16,7 @@ import {
 } from "./protocol";
 import { useGameStore } from "../state/store";
 import type { InventoryItem, ChatChannel, Skill } from "./types";
+import { itemDisplay } from "./itemDefs";
 
 const RECONNECT_DELAY_MS = 2000;
 const MAX_RECONNECT_ATTEMPTS = 10;
@@ -169,15 +170,21 @@ export class GameSocket {
         break;
       }
 
+      case OP.INVENTORY_FULL:
       case OP.INVENTORY_DELTA: {
         const p = decodeInventoryDelta(buf);
-        const items: InventoryItem[] = p.items.map((raw) => ({
-          slotIndex: raw.slotIndex,
-          itemId: raw.itemId,
-          name: raw.name,
-          quantity: raw.quantity,
-          color: `#${raw.color.toString(16).padStart(6, "0")}`,
-        }));
+        const items: InventoryItem[] = p.items
+          .filter((raw) => raw.itemDefId !== "")
+          .map((raw) => {
+            const display = itemDisplay(raw.itemDefId);
+            return {
+              slotIndex: raw.slotIndex,
+              itemId: 0,
+              name: display.name,
+              quantity: raw.quantity,
+              color: display.color,
+            };
+          });
         store.setInventory(items);
         break;
       }

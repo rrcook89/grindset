@@ -1,9 +1,59 @@
 package zone
 
 import (
+	"crypto/rand"
+	"encoding/binary"
+	"time"
+
 	"github.com/grindset/server/internal/protocol"
 	"github.com/grindset/server/internal/skills"
 )
+
+const grindBaseUnit int64 = 1_000_000_000 // 1 $GRIND = 1e9 base units (9 decimals)
+
+// stackable item def IDs (ores, logs, fish, bars). Anything not listed slots
+// individually. Sprint-1 hardcoded; will move to item_definitions table.
+var stackable = map[string]bool{
+	"ore_copper": true, "ore_iron": true, "ore_coal": true, "ore_mithril": true,
+	"log_normal": true, "log_oak": true, "log_willow": true, "log_yew": true,
+	"fish_raw_shrimp": true, "fish_raw_trout": true, "fish_raw_lobster": true, "fish_raw_swordfish": true,
+	"bronze_bar": true, "iron_bar": true, "steel_bar": true,
+}
+
+// addInventoryItem stacks (or finds the first empty slot for) defID. Returns
+// the slot index that was modified, or -1 if inventory is full.
+func addInventoryItem(inv *[28]protocol.InventorySlot, defID string, qty uint32) int {
+	if stackable[defID] {
+		for i := range inv {
+			if inv[i].ItemDefID == defID {
+				inv[i].Qty += qty
+				inv[i].Slot = uint8(i)
+				return i
+			}
+		}
+	}
+	for i := range inv {
+		if inv[i].ItemDefID == "" {
+			inv[i].Slot = uint8(i)
+			inv[i].ItemDefID = defID
+			inv[i].Qty = qty
+			return i
+		}
+	}
+	return -1
+}
+
+// randInRange returns a uniform integer in [lo, hi]. Uses crypto/rand for
+// unpredictability per CLAUDE.md guidance.
+func randInRange(lo, hi int) int {
+	if hi <= lo {
+		return lo
+	}
+	span := uint64(hi - lo + 1)
+	var b [8]byte
+	_, _ = rand.Read(b[:])
+	return lo + int(binary.LittleEndian.Uint64(b[:])%span)
+}
 
 // StartSkillAction looks up nodeID in the zone, validates the player can use it,
 // and stores an ActiveAction on the player. Idempotent if already mining the
@@ -78,17 +128,55 @@ func (z *Zone) resolveSkillingLocked() {
 		p.SkillXP[def.Skill] = newXP
 		newLevel := skills.LevelForXP(newXP)
 
+		// Roll a small $GRIND drop per the faucet rates in docs/04-tokenomics.md.
+		// Ranges in whole $GRIND, scaled to base units.
+		grindDropped := uint64(randInRange(0, 3)) * uint64(grindBaseUnit)
+		p.GrindBalance += int64(grindDropped)
+
+		// Stack/place the item.
+		slotIdx := addInventoryItem(&p.Inventory, itemID, 1)
+
 		// Broadcast a SkillTick to this player's outbox.
 		tick := protocol.EncodeSkillTick(protocol.SkillTick{
 			Skill:        skillIndex(def.Skill),
 			XPGained:     uint16(xpGained),
 			TotalXP:      uint32(newXP),
-			GrindDropped: 0, // no $GRIND drop yet — wallet wiring is next
+			GrindDropped: grindDropped,
 			ItemDefID:    itemID,
 		})
 		select {
 		case p.Outbox <- tick:
 		default:
+		}
+
+		// Inventory delta: send just the changed slot.
+		if slotIdx >= 0 {
+			invMsg := protocol.EncodeInventoryDelta([]protocol.InventorySlot{p.Inventory[slotIdx]})
+			select {
+			case p.Outbox <- invMsg:
+			default:
+			}
+		}
+
+		// Wallet broadcasts: only if a drop happened (saves bandwidth).
+		if grindDropped > 0 {
+			balMsg := protocol.EncodeWalletBalance(protocol.WalletBalance{
+				Balance:  uint64(p.GrindBalance),
+				Reserved: 0,
+			})
+			ledgerMsg := protocol.EncodeWalletLedgerEntry(protocol.WalletLedgerEntry{
+				Delta:  int64(grindDropped),
+				Reason: "skill_drop:" + string(def.Skill),
+				TS:     time.Now().Unix(),
+			})
+			select {
+			case p.Outbox <- balMsg:
+			default:
+			}
+			select {
+			case p.Outbox <- ledgerMsg:
+			default:
+			}
 		}
 
 		if newLevel > oldLevel {

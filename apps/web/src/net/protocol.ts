@@ -320,11 +320,8 @@ export function decodeSkillLevelUp(buf: ArrayBuffer): SkillLevelUpPayload {
 
 export interface InventoryDeltaItem {
   slotIndex: number;
-  itemId: number;
+  itemDefId: string; // empty = empty slot
   quantity: number;
-  nameLen: number;
-  name: string;
-  color: number; // packed RGB u24
 }
 
 export interface InventoryDeltaPayload {
@@ -332,8 +329,9 @@ export interface InventoryDeltaPayload {
 }
 
 /**
- * 0x71 InventoryDelta payload (after header):
- * count:u8, then count × (slot:u8, item_id:u16, qty:u16, name_len:u8, name_utf8, color:u24)
+ * 0x70 InventoryFull / 0x71 InventoryDelta payload (after header):
+ * count:u8, count × (slot:u8, def_id_len:u8, def_id_utf8, qty:u32)
+ * (matches server EncodeInventoryFull / EncodeInventoryDelta)
  */
 export function decodeInventoryDelta(buf: ArrayBuffer): InventoryDeltaPayload {
   const view = new DataView(buf);
@@ -342,14 +340,14 @@ export function decodeInventoryDelta(buf: ArrayBuffer): InventoryDeltaPayload {
   let offset = 5;
   for (let i = 0; i < count; i++) {
     const slotIndex = view.getUint8(offset);
-    const itemId = view.getUint16(offset + 1, true);
-    const quantity = view.getUint16(offset + 3, true);
-    const nameLen = view.getUint8(offset + 5);
-    const name = decodeString(buf, offset + 6, nameLen);
-    offset += 6 + nameLen;
-    const color = (view.getUint8(offset) << 16) | (view.getUint8(offset + 1) << 8) | view.getUint8(offset + 2);
-    offset += 3;
-    items.push({ slotIndex, itemId, quantity, nameLen, name, color });
+    offset += 1;
+    const defLen = view.getUint8(offset);
+    offset += 1;
+    const itemDefId = decodeString(buf, offset, defLen);
+    offset += defLen;
+    const quantity = view.getUint32(offset, true);
+    offset += 4;
+    items.push({ slotIndex, itemDefId, quantity });
   }
   return { items };
 }

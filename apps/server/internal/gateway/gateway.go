@@ -61,6 +61,18 @@ func (g *Gateway) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Initial state: empty inventory + zero wallet balance, so the UI
+	// populates with real (if empty) data instead of waiting for the first
+	// drop. Send via Outbox so the writeLoop serialises with later updates.
+	select {
+	case p.Outbox <- protocol.EncodeInventoryFull(nil):
+	default:
+	}
+	select {
+	case p.Outbox <- protocol.EncodeWalletBalance(protocol.WalletBalance{Balance: 0, Reserved: 0}):
+	default:
+	}
+
 	readErr := make(chan error, 1)
 	go func() { readErr <- g.readLoop(ctx, c, p) }()
 

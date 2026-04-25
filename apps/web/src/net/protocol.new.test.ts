@@ -248,11 +248,12 @@ describe("decodeSkillTick", () => {
 });
 
 // ── decodeInventoryDelta (0x71) ───────────────────────────────────────────────
+// Server format: count:u8, count × (slot:u8, def_id_len:u8, def_id_utf8, qty:u32)
 
-function makeInventoryDelta(items: Array<{ slot: number; itemId: number; qty: number; name: string; color: number }>): ArrayBuffer {
+function makeInventoryDelta(items: Array<{ slot: number; defId: string; qty: number }>): ArrayBuffer {
   const enc = new TextEncoder();
-  const encoded = items.map((i) => enc.encode(i.name));
-  const payloadLen = 1 + items.reduce((acc, _, idx) => acc + 1 + 2 + 2 + 1 + encoded[idx].byteLength + 3, 0);
+  const encoded = items.map((i) => enc.encode(i.defId));
+  const payloadLen = 1 + items.reduce((acc, _, idx) => acc + 1 + 1 + encoded[idx].byteLength + 4, 0);
   const buf = new ArrayBuffer(4 + payloadLen);
   const v = new DataView(buf);
   v.setUint8(0, OP.INVENTORY_DELTA);
@@ -262,15 +263,11 @@ function makeInventoryDelta(items: Array<{ slot: number; itemId: number; qty: nu
   let off = 5;
   items.forEach((item, idx) => {
     v.setUint8(off, item.slot);
-    v.setUint16(off + 1, item.itemId, true);
-    v.setUint16(off + 3, item.qty, true);
-    v.setUint8(off + 5, encoded[idx].byteLength);
-    new Uint8Array(buf).set(encoded[idx], off + 6);
-    off += 6 + encoded[idx].byteLength;
-    v.setUint8(off, (item.color >> 16) & 0xff);
-    v.setUint8(off + 1, (item.color >> 8) & 0xff);
-    v.setUint8(off + 2, item.color & 0xff);
-    off += 3;
+    v.setUint8(off + 1, encoded[idx].byteLength);
+    new Uint8Array(buf).set(encoded[idx], off + 2);
+    off += 2 + encoded[idx].byteLength;
+    v.setUint32(off, item.qty, true);
+    off += 4;
   });
   return buf;
 }
@@ -281,24 +278,22 @@ describe("decodeInventoryDelta", () => {
   });
 
   it("decodes a single item", () => {
-    const buf = makeInventoryDelta([{ slot: 3, itemId: 42, qty: 10, name: "Iron", color: 0xaabbcc }]);
+    const buf = makeInventoryDelta([{ slot: 3, defId: "ore_iron", qty: 10 }]);
     const { items } = decodeInventoryDelta(buf);
     expect(items).toHaveLength(1);
     expect(items[0].slotIndex).toBe(3);
-    expect(items[0].itemId).toBe(42);
+    expect(items[0].itemDefId).toBe("ore_iron");
     expect(items[0].quantity).toBe(10);
-    expect(items[0].name).toBe("Iron");
-    expect(items[0].color).toBe(0xaabbcc);
   });
 
   it("decodes multiple items", () => {
     const input = [
-      { slot: 0, itemId: 1, qty: 1, name: "A", color: 0xff0000 },
-      { slot: 1, itemId: 2, qty: 5, name: "BB", color: 0x00ff00 },
+      { slot: 0, defId: "ore_copper", qty: 1 },
+      { slot: 1, defId: "log_oak", qty: 5 },
     ];
     const { items } = decodeInventoryDelta(makeInventoryDelta(input));
     expect(items).toHaveLength(2);
-    expect(items[1].name).toBe("BB");
+    expect(items[1].itemDefId).toBe("log_oak");
   });
 });
 
