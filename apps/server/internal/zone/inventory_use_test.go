@@ -65,6 +65,49 @@ func TestUseItemNonEdibleNoOp(t *testing.T) {
 	}
 }
 
+func TestSellItemCreditsBalanceAndClearsSlot(t *testing.T) {
+	z := newTestZone()
+	p, _ := z.Join("alice")
+
+	z.mu.Lock()
+	addInventoryItem(&p.Inventory, "rat_tail", 5)
+	beforeBal := p.GrindBalance
+	z.mu.Unlock()
+
+	z.SellItem(p.ID, 0)
+
+	z.mu.Lock()
+	defer z.mu.Unlock()
+	wantGain := int64(5) * 2 * grindBaseUnit // 5 tails × 2 \$GRIND each
+	if p.GrindBalance-beforeBal != wantGain {
+		t.Fatalf("balance gain: got %d want %d", p.GrindBalance-beforeBal, wantGain)
+	}
+	if p.Inventory[0].ItemDefID != "" || p.Inventory[0].Qty != 0 {
+		t.Fatalf("slot not cleared after sell: %+v", p.Inventory[0])
+	}
+}
+
+func TestSellItemRejectsNonSellable(t *testing.T) {
+	z := newTestZone()
+	p, _ := z.Join("alice")
+
+	z.mu.Lock()
+	addInventoryItem(&p.Inventory, "ore_copper", 5)
+	beforeBal := p.GrindBalance
+	z.mu.Unlock()
+
+	z.SellItem(p.ID, 0)
+
+	z.mu.Lock()
+	defer z.mu.Unlock()
+	if p.GrindBalance != beforeBal {
+		t.Fatalf("balance changed for unsellable item: delta=%d", p.GrindBalance-beforeBal)
+	}
+	if p.Inventory[0].Qty != 5 {
+		t.Fatalf("ore stack disturbed by failed sell: qty=%d", p.Inventory[0].Qty)
+	}
+}
+
 func TestUseItemDeadPlayerNoOp(t *testing.T) {
 	z := newTestZone()
 	p, _ := z.Join("alice")

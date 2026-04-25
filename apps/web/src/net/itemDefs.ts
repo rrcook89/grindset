@@ -63,3 +63,19 @@ export function weaponBonus(defId: string | null): number {
     default: return 0;
   }
 }
+
+/**
+ * Vendor sell price per unit (in whole \$GRIND, not base units).
+ * Mirrors apps/server/internal/zone/inventory_use.go itemSellPrice.
+ * 0 = item is not vendor-sellable.
+ */
+export function itemSellPrice(defId: string): number {
+  switch (defId) {
+    case "rat_tail": return 2;
+    case "goblin_ear": return 5;
+    case "coin_pouch": return 12;
+    case "dwarven_shard": return 30;
+    case "bog_essence": return 100;
+    default: return 0;
+  }
+}

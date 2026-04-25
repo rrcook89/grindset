@@ -3,7 +3,13 @@ import { useGameStore } from "../state/store";
 import type { InventoryItem } from "../net/types";
 import { getActiveSocket } from "../net/Socket";
 import { encodeInventoryUse } from "../net/protocol";
-import { isWeapon, weaponBonus } from "../net/itemDefs";
+import { isWeapon, weaponBonus, itemSellPrice } from "../net/itemDefs";
+
+function sellSlot(slotIndex: number): void {
+  const socket = getActiveSocket();
+  // target_kind=3 → vendor-sell on the server side.
+  socket?.sendRaw(encodeInventoryUse(slotIndex, 3, 0));
+}
 
 function useSlot(slotIndex: number, item?: InventoryItem): void {
   const socket = getActiveSocket();
@@ -146,29 +152,42 @@ export function Inventory() {
         ))}
       </div>
 
-      {ctxMenu && (
-        <div
-          className="fixed z-50 rounded border border-ingot-gold/40 bg-obsidian py-1 shadow-lg"
-          style={{ left: ctxMenu.x, top: ctxMenu.y }}
-        >
-          {(["Use", "Examine", "Drop", "Deposit"] as const).map((action) => (
-            <button
-              key={action}
-              className="block w-full px-4 py-1 text-left text-sm text-parchment-grey hover:bg-ingot-gold/10 hover:text-ingot-gold"
-              onClick={() => {
-                if (action === "Deposit") {
-                  useGameStore.getState().depositItem(ctxMenu.item.slotIndex);
-                } else if (action === "Use") {
-                  useSlot(ctxMenu.item.slotIndex, ctxMenu.item);
-                }
-                setCtxMenu(null);
-              }}
-            >
-              {action}
-            </button>
-          ))}
-        </div>
-      )}
+      {ctxMenu && (() => {
+        const ctxItemDefId = ctxMenu.item.name.toLowerCase().replace(/\s+/g, "_");
+        const sellPrice = itemSellPrice(ctxItemDefId);
+        const actions: Array<"Use" | "Examine" | "Drop" | "Deposit" | "Sell"> = ["Use", "Examine", "Drop", "Deposit"];
+        if (sellPrice > 0) actions.push("Sell");
+        return (
+          <div
+            className="fixed z-50 rounded border border-ingot-gold/40 bg-obsidian py-1 shadow-lg"
+            style={{ left: ctxMenu.x, top: ctxMenu.y }}
+          >
+            {actions.map((action) => (
+              <button
+                key={action}
+                className="block w-full px-4 py-1 text-left text-sm text-parchment-grey hover:bg-ingot-gold/10 hover:text-ingot-gold"
+                onClick={() => {
+                  if (action === "Deposit") {
+                    useGameStore.getState().depositItem(ctxMenu.item.slotIndex);
+                  } else if (action === "Use") {
+                    useSlot(ctxMenu.item.slotIndex, ctxMenu.item);
+                  } else if (action === "Sell") {
+                    sellSlot(ctxMenu.item.slotIndex);
+                  }
+                  setCtxMenu(null);
+                }}
+              >
+                {action}
+                {action === "Sell" && (
+                  <span className="ml-2 font-mono text-xs text-ingot-gold/60">
+                    {sellPrice}× {ctxMenu.item.quantity > 1 ? `(${sellPrice * ctxMenu.item.quantity} total)` : "$GRIND"}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        );
+      })()}
     </div>
   );
 }

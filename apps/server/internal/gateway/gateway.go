@@ -140,7 +140,12 @@ func (g *Gateway) readLoop(ctx context.Context, c *websocket.Conn, p *zone.Playe
 			if err != nil {
 				continue
 			}
-			g.z.UseItem(p.ID, m.Slot)
+			// TargetKind=3 = vendor-sell. Anything else → use-on-self.
+			if m.TargetKind == 3 {
+				g.z.SellItem(p.ID, m.Slot)
+			} else {
+				g.z.UseItem(p.ID, m.Slot)
+			}
 		case protocol.OpChatSay:
 			m, err := protocol.DecodeChatSay(frame.Payload)
 			if err != nil || m.Body == "" {
