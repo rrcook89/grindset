@@ -15,7 +15,7 @@ func TestCombatTargetRoundTrip(t *testing.T) {
 }
 
 func TestCombatHitRoundTrip(t *testing.T) {
-	h := CombatHit{AttackerID: 1, TargetID: 2, Damage: 14, MaxHit: 20}
+	h := CombatHit{AttackerID: 1, TargetID: 2, Damage: 14, MaxHit: 20, TargetHP: 36, TargetMaxHP: 50}
 	got, err := DecodeCombatHit(mustPayload(t, EncodeCombatHit(h)))
 	if err != nil || got != h {
 		t.Fatalf("got %+v err %v", got, err)

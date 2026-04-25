@@ -129,6 +129,24 @@ export class GameSocket {
           type: p.damage === 0 ? "heal" : "damage",
           timestamp: Date.now(),
         });
+        // HP propagation:
+        const lp = useGameStore.getState().localPlayer;
+        if (lp && p.targetId === lp.id) {
+          // Local player took damage — update player HP.
+          useGameStore.setState((s) =>
+            s.localPlayer
+              ? { localPlayer: { ...s.localPlayer, hp: p.targetHp, maxHp: p.targetMaxHp } }
+              : s,
+          );
+        } else if (lp && p.attackerId === lp.id) {
+          // Local player just hit a mob — show/refresh the target frame.
+          store.setCombatTarget({
+            entityId: p.targetId,
+            name: "Target",
+            hp: p.targetHp,
+            maxHp: p.targetMaxHp,
+          });
+        }
         break;
       }
 

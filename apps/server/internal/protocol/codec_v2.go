@@ -50,31 +50,38 @@ func DecodeCombatTarget(p []byte) (CombatTarget, error) {
 }
 
 // CombatHit (S→C): one resolved attack. Damage=0 means miss.
+// TargetHP/TargetMaxHP carry the post-swing HP so the client can drive bars.
 type CombatHit struct {
-	AttackerID uint32
-	TargetID   uint32
-	Damage     uint16
-	MaxHit     uint16
+	AttackerID   uint32
+	TargetID     uint32
+	Damage       uint16
+	MaxHit       uint16
+	TargetHP     uint16
+	TargetMaxHP  uint16
 }
 
 func EncodeCombatHit(h CombatHit) []byte {
-	p := make([]byte, 12)
+	p := make([]byte, 16)
 	binary.LittleEndian.PutUint32(p[0:4], h.AttackerID)
 	binary.LittleEndian.PutUint32(p[4:8], h.TargetID)
 	binary.LittleEndian.PutUint16(p[8:10], h.Damage)
 	binary.LittleEndian.PutUint16(p[10:12], h.MaxHit)
+	binary.LittleEndian.PutUint16(p[12:14], h.TargetHP)
+	binary.LittleEndian.PutUint16(p[14:16], h.TargetMaxHP)
 	return Encode(OpCombatHit, p)
 }
 
 func DecodeCombatHit(p []byte) (CombatHit, error) {
-	if len(p) < 12 {
+	if len(p) < 16 {
 		return CombatHit{}, ErrShort
 	}
 	return CombatHit{
-		AttackerID: binary.LittleEndian.Uint32(p[0:4]),
-		TargetID:   binary.LittleEndian.Uint32(p[4:8]),
-		Damage:     binary.LittleEndian.Uint16(p[8:10]),
-		MaxHit:     binary.LittleEndian.Uint16(p[10:12]),
+		AttackerID:  binary.LittleEndian.Uint32(p[0:4]),
+		TargetID:    binary.LittleEndian.Uint32(p[4:8]),
+		Damage:      binary.LittleEndian.Uint16(p[8:10]),
+		MaxHit:      binary.LittleEndian.Uint16(p[10:12]),
+		TargetHP:    binary.LittleEndian.Uint16(p[12:14]),
+		TargetMaxHP: binary.LittleEndian.Uint16(p[14:16]),
 	}, nil
 }
 

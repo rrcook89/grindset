@@ -241,11 +241,14 @@ export interface CombatHitPayload {
   targetId: number;
   damage: number; // 0 = miss
   maxHit: number;
+  targetHp: number;
+  targetMaxHp: number;
 }
 
 /**
  * 0x31 CombatHit payload (after header):
- * attacker_id:u32, target_id:u32, damage:u16, max_hit:u16
+ * attacker_id:u32, target_id:u32, damage:u16, max_hit:u16,
+ * target_hp:u16, target_max_hp:u16
  * (matches server EncodeCombatHit)
  */
 export function decodeCombatHit(buf: ArrayBuffer): CombatHitPayload {
@@ -255,6 +258,8 @@ export function decodeCombatHit(buf: ArrayBuffer): CombatHitPayload {
     targetId: view.getUint32(8, true),
     damage: view.getUint16(12, true),
     maxHit: view.getUint16(14, true),
+    targetHp: view.getUint16(16, true),
+    targetMaxHp: view.getUint16(18, true),
   };
 }
 

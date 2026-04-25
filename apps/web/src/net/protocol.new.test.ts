@@ -153,27 +153,33 @@ describe("encodeGEOrderCancel", () => {
 
 // ── decodeCombatHit (0x31) ───────────────────────────────────────────────────
 
-function makeCombatHit(attackerId: number, targetId: number, damage: number, maxHit: number): ArrayBuffer {
-  const buf = new ArrayBuffer(4 + 4 + 4 + 2 + 2);
+function makeCombatHit(attackerId: number, targetId: number, damage: number, maxHit: number, hp = 0, max = 0): ArrayBuffer {
+  const buf = new ArrayBuffer(4 + 4 + 4 + 2 + 2 + 2 + 2);
   const v = new DataView(buf);
   v.setUint8(0, OP.COMBAT_HIT);
   v.setUint8(1, 0);
-  v.setUint16(2, 12, true);
+  v.setUint16(2, 16, true);
   v.setUint32(4, attackerId, true);
   v.setUint32(8, targetId, true);
   v.setUint16(12, damage, true);
   v.setUint16(14, maxHit, true);
+  v.setUint16(16, hp, true);
+  v.setUint16(18, max, true);
   return buf;
 }
 
 describe("decodeCombatHit", () => {
   it("decodes a hit", () => {
-    const p = decodeCombatHit(makeCombatHit(7, 1_000_001, 5, 8));
-    expect(p).toEqual({ attackerId: 7, targetId: 1_000_001, damage: 5, maxHit: 8 });
+    const p = decodeCombatHit(makeCombatHit(7, 1_000_001, 5, 8, 15, 20));
+    expect(p).toEqual({
+      attackerId: 7, targetId: 1_000_001,
+      damage: 5, maxHit: 8,
+      targetHp: 15, targetMaxHp: 20,
+    });
   });
 
   it("decodes a miss (damage=0)", () => {
-    expect(decodeCombatHit(makeCombatHit(2, 99, 0, 8)).damage).toBe(0);
+    expect(decodeCombatHit(makeCombatHit(2, 99, 0, 8, 100, 100)).damage).toBe(0);
   });
 });
 

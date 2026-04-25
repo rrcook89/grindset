@@ -97,10 +97,12 @@ func (z *Zone) resolveCombatLocked() {
 			attacker.HP -= dmg
 		}
 		hit := protocol.EncodeCombatHit(protocol.CombatHit{
-			AttackerID: mob.ID,
-			TargetID:   attacker.ID,
-			Damage:     dmg,
-			MaxHit:     max,
+			AttackerID:  mob.ID,
+			TargetID:    attacker.ID,
+			Damage:      dmg,
+			MaxHit:      max,
+			TargetHP:    attacker.HP,
+			TargetMaxHP: attacker.MaxHP,
 		})
 		select {
 		case attacker.Outbox <- hit:
@@ -154,10 +156,12 @@ func (z *Zone) resolveCombatLocked() {
 		// Broadcast CombatHit to the attacker (and ideally all viewers; for
 		// Sprint-1 we just notify the attacker since they own the HUD).
 		hitMsg := protocol.EncodeCombatHit(protocol.CombatHit{
-			AttackerID: p.ID,
-			TargetID:   mob.ID,
-			Damage:     damage,
-			MaxHit:     uint16(playerMaxHit),
+			AttackerID:  p.ID,
+			TargetID:    mob.ID,
+			Damage:      damage,
+			MaxHit:      uint16(playerMaxHit),
+			TargetHP:    mob.HP,
+			TargetMaxHP: mob.MaxHP,
 		})
 		select {
 		case p.Outbox <- hitMsg:
