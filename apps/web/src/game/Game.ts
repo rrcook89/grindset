@@ -13,7 +13,6 @@ import { FireFlicker } from "./FireFlicker";
 import { Input } from "./Input";
 import type { GameSocket } from "../net/Socket";
 import { useGameStore } from "../state/store";
-import { sfx } from "./Sfx";
 
 // Viewport: ~20×15 tiles visible around the player
 const VIEWPORT_TILES_X = 20;
@@ -147,6 +146,7 @@ export class Game {
 
     let lastFloatSweep = 0;
     let lastSwingBorn = 0;
+    let cameraInit = false;
     app.ticker.add((ticker) => {
       const deltaMs = ticker.deltaMS;
 
@@ -241,11 +241,23 @@ export class Game {
         decoBuilt = true;
       }
 
-      // Camera: centre viewport on the local player's iso position.
+      // Camera: ease toward the local player's iso position. Without the
+      // lerp the world snaps tile-to-tile while the sprite slides between
+      // them, so the sprite drifts within frame and the world jolts on
+      // every tick. The exponential lerp catches up over ~3 frames.
       if (localPlayer) {
         const c = tileToIso(localPlayer.x, localPlayer.y);
-        worldContainer.x = app.screen.width / 2 - c.x;
-        worldContainer.y = app.screen.height / 2 - c.y;
+        const targetX = app.screen.width / 2 - c.x;
+        const targetY = app.screen.height / 2 - c.y;
+        if (!cameraInit) {
+          worldContainer.x = targetX;
+          worldContainer.y = targetY;
+          cameraInit = true;
+        } else {
+          const alpha = 0.18;
+          worldContainer.x += (targetX - worldContainer.x) * alpha;
+          worldContainer.y += (targetY - worldContainer.y) * alpha;
+        }
       }
     });
 
