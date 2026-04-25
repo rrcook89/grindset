@@ -264,33 +264,88 @@ export class EntityRenderer {
 
     const bodyColor = isSelf ? COLOR_SELF_BODY : COLOR_OTHER_BODY;
     const hatColor  = isSelf ? COLOR_SELF_HAT  : COLOR_OTHER_HAT;
+    // Lighting from upper-left → right side gets ~25% darker, left gets a
+    // small highlight. Pure 3/4-perspective trick.
+    const shade = (hex: number, mult: number): number => {
+      const r = Math.min(255, Math.round(((hex >> 16) & 0xff) * mult));
+      const g = Math.min(255, Math.round(((hex >> 8) & 0xff) * mult));
+      const b = Math.min(255, Math.round((hex & 0xff) * mult));
+      return (r << 16) | (g << 8) | b;
+    };
+    const bodyShadow = shade(bodyColor, 0.7);
+    const bodyHigh = shade(bodyColor, 1.18);
+    const hatShadow = shade(hatColor, 0.7);
 
     const g = entry.g;
     g.clear();
 
-    // Body: rounded rect, occupies lower 60px of bounding box
-    const bodyX = 12;
-    const bodyY = 36;
-    const bodyW = SPRITE_W - 24;
-    const bodyH = 50;
-    g.roundRect(bodyX, bodyY, bodyW, bodyH, 6).fill({ color: bodyColor });
-    if (isSelf) {
-      g.roundRect(bodyX, bodyY, bodyW, bodyH, 6).stroke({ color: 0xffffff, width: 2 });
-    }
+    const cx = SPRITE_W / 2;
+    const feetY = SPRITE_H - 4; // a touch off the bottom so shadow shows
+    // Robe: trapezoid widening at the base — reads as a standing figure
+    // from the iso angle far better than a flat rect.
+    g.poly([
+      cx - 9, 38,                  // left shoulder
+      cx + 9, 38,                  // right shoulder
+      cx + 18, feetY,              // right hem
+      cx - 18, feetY,              // left hem
+    ]).fill({ color: bodyColor });
+    // Right-side robe shading
+    g.poly([
+      cx + 1, 38,
+      cx + 9, 38,
+      cx + 18, feetY,
+      cx + 4, feetY,
+    ]).fill({ color: bodyShadow });
+    // Left-side robe highlight
+    g.poly([
+      cx - 9, 38,
+      cx - 5, 38,
+      cx - 14, feetY,
+      cx - 18, feetY,
+    ]).fill({ color: bodyHigh, alpha: 0.35 });
 
-    // Head
-    const headCX = SPRITE_W / 2;
-    const headCY = 22;
-    const headR = 14;
-    g.circle(headCX, headCY, headR).fill({ color: bodyColor });
-    if (isSelf) {
-      g.circle(headCX, headCY, headR).stroke({ color: 0xffffff, width: 2 });
-    }
+    // Belt
+    g.rect(cx - 14, 56, 28, 3).fill({ color: hatShadow });
 
-    // Wizard hat
-    g.rect(headCX - 16, headCY - headR + 2, 32, 5).fill({ color: hatColor });
-    g.rect(headCX - 7, headCY - headR - 14, 14, 16).fill({ color: hatColor });
-    g.rect(headCX - 4, headCY - headR - 22, 8, 10).fill({ color: hatColor });
+    // Sleeves: small rects either side of the body at shoulder height
+    g.roundRect(cx - 16, 40, 7, 14, 2).fill({ color: bodyColor });
+    g.roundRect(cx + 9, 40, 7, 14, 2).fill({ color: bodyShadow });
+
+    // Head: oval, slightly wider than tall for iso readability.
+    const headCX = cx;
+    const headCY = 28;
+    g.ellipse(headCX, headCY, 9, 10).fill({ color: 0xe8c896 }); // skin tone
+    g.ellipse(headCX + 1, headCY + 1, 9, 10).fill({ color: shade(0xe8c896, 0.78), alpha: 0.5 });
+    // Eyes (two dark dots facing camera)
+    g.circle(headCX - 3, headCY - 1, 1.2).fill({ color: 0x100808 });
+    g.circle(headCX + 3, headCY - 1, 1.2).fill({ color: 0x100808 });
+
+    // Wizard hat: pointy cone + brim drawn as ellipses for the iso angle.
+    // Brim
+    g.ellipse(headCX, headCY - 8, 16, 5).fill({ color: hatColor });
+    g.ellipse(headCX, headCY - 8, 16, 5).stroke({ color: hatShadow, width: 1 });
+    // Cone (taper from brim to peak)
+    g.poly([
+      headCX - 11, headCY - 8,
+      headCX + 11, headCY - 8,
+      headCX + 2, headCY - 26,
+      headCX - 2, headCY - 26,
+    ]).fill({ color: hatColor });
+    // Cone right-side shadow
+    g.poly([
+      headCX, headCY - 8,
+      headCX + 11, headCY - 8,
+      headCX + 2, headCY - 26,
+      headCX, headCY - 26,
+    ]).fill({ color: hatShadow });
+    // Tip cap
+    g.circle(headCX, headCY - 26, 2).fill({ color: hatShadow });
+
+    // Self-marker: bright outline ring under the feet so the local player
+    // is unambiguous in a crowd.
+    if (isSelf) {
+      g.ellipse(cx, feetY + 2, 18, 4).stroke({ color: 0xffffff, width: 2, alpha: 0.7 });
+    }
 
     // Name label
     this.applyLabel(entry, name, isSelf ? 0xffffff : 0xc8a040);
@@ -305,17 +360,22 @@ export class EntityRenderer {
 
     const g = entry.g;
     g.clear();
-    // Tier visualisation by maxHP — bigger + darker for higher tiers.
-    let radius = 12, body = 0xe04545, outline = 0x800000;
-    if (maxHp >= 100) { radius = 22; body = 0x2a1030; outline = 0x100018; }       // bog_horror
-    else if (maxHp >= 60) { radius = 20; body = 0x6a6a78; outline = 0x303040; }    // dwarf_thug
-    else if (maxHp >= 30) { radius = 18; body = 0x8a3060; outline = 0x501030; }    // mire_bandit
-    else if (maxHp >= 15) { radius = 16; body = 0xc04535; outline = 0x602010; }    // bog_goblin
-    g.circle(SPRITE_W / 2, SPRITE_H / 2, radius).fill({ color: body });
-    g.circle(SPRITE_W / 2, SPRITE_H / 2, radius).stroke({ color: outline, width: 2 });
+    const cx = SPRITE_W / 2;
+    const feetY = SPRITE_H - 4;
+
+    if (maxHp >= 100) {
+      drawBogHorror(g, cx, feetY);
+    } else if (maxHp >= 60) {
+      drawDwarfThug(g, cx, feetY);
+    } else if (maxHp >= 30) {
+      drawBandit(g, cx, feetY);
+    } else if (maxHp >= 15) {
+      drawGoblin(g, cx, feetY);
+    } else {
+      drawMarshRat(g, cx, feetY);
+    }
 
     this.applyLabel(entry, mobNameForMaxHp(maxHp), 0xe8b0a0);
-
     this.drawHpBar(entry.hpBar, hp, maxHp);
   }
 
@@ -366,4 +426,136 @@ function mobNameForMaxHp(maxHp: number): string {
   if (maxHp >= 30) return "Bandit";
   if (maxHp >= 15) return "Goblin";
   return "Marsh Rat";
+}
+
+// ── Mob art ───────────────────────────────────────────────────────────────
+
+function drawMarshRat(g: Graphics, cx: number, feetY: number): void {
+  const baseY = feetY - 6;
+  // Body — stretched horizontal ellipse (rats are low to the ground)
+  g.ellipse(cx, baseY, 12, 6).fill({ color: 0x6a4a30 });
+  g.ellipse(cx + 1, baseY + 1, 12, 6).fill({ color: 0x4a2e18, alpha: 0.5 });
+  // Head
+  g.ellipse(cx + 8, baseY - 2, 5, 4).fill({ color: 0x6a4a30 });
+  // Snout
+  g.circle(cx + 12, baseY - 1, 1.5).fill({ color: 0xe05050 });
+  // Eye
+  g.circle(cx + 9, baseY - 3, 0.8).fill({ color: 0x100404 });
+  // Tail — curved line via thin polys
+  g.rect(cx - 12, baseY, 8, 1).fill({ color: 0x4a2e18 });
+  // Ears
+  g.circle(cx + 6, baseY - 5, 1.5).fill({ color: 0x4a2e18 });
+}
+
+function drawGoblin(g: Graphics, cx: number, feetY: number): void {
+  const baseY = feetY - 14;
+  // Body — green hunched figure
+  g.poly([
+    cx - 8, baseY,
+    cx + 8, baseY,
+    cx + 11, feetY,
+    cx - 11, feetY,
+  ]).fill({ color: 0x4a7a30 });
+  g.poly([
+    cx + 1, baseY,
+    cx + 8, baseY,
+    cx + 11, feetY,
+    cx + 4, feetY,
+  ]).fill({ color: 0x2a5a18 });
+  // Head — pointy
+  g.ellipse(cx, baseY - 6, 8, 8).fill({ color: 0x6aa040 });
+  // Pointy ears
+  g.poly([cx - 7, baseY - 8, cx - 11, baseY - 12, cx - 6, baseY - 5]).fill({ color: 0x6aa040 });
+  g.poly([cx + 7, baseY - 8, cx + 11, baseY - 12, cx + 6, baseY - 5]).fill({ color: 0x4a7a30 });
+  // Yellow eyes (glowing)
+  g.circle(cx - 3, baseY - 6, 1.4).fill({ color: 0xffe040 });
+  g.circle(cx + 3, baseY - 6, 1.4).fill({ color: 0xffe040 });
+  // Crude mouth/teeth
+  g.rect(cx - 2, baseY - 2, 4, 1.5).fill({ color: 0x2a1810 });
+}
+
+function drawBandit(g: Graphics, cx: number, feetY: number): void {
+  const baseY = feetY - 18;
+  // Body — hooded purple silhouette
+  g.poly([
+    cx - 10, baseY,
+    cx + 10, baseY,
+    cx + 13, feetY,
+    cx - 13, feetY,
+  ]).fill({ color: 0x6a3060 });
+  g.poly([
+    cx + 1, baseY,
+    cx + 10, baseY,
+    cx + 13, feetY,
+    cx + 4, feetY,
+  ]).fill({ color: 0x401838 });
+  // Belt
+  g.rect(cx - 11, feetY - 8, 22, 2).fill({ color: 0x2a0a18 });
+  // Hood (overhanging head)
+  g.ellipse(cx, baseY - 4, 10, 9).fill({ color: 0x401838 });
+  // Face shadow under hood
+  g.ellipse(cx, baseY - 2, 7, 5).fill({ color: 0x100008 });
+  // Glowing red eyes
+  g.circle(cx - 2, baseY - 2, 0.9).fill({ color: 0xff4040 });
+  g.circle(cx + 2, baseY - 2, 0.9).fill({ color: 0xff4040 });
+}
+
+function drawDwarfThug(g: Graphics, cx: number, feetY: number): void {
+  const baseY = feetY - 22;
+  // Body — stocky grey
+  g.poly([
+    cx - 13, baseY,
+    cx + 13, baseY,
+    cx + 14, feetY,
+    cx - 14, feetY,
+  ]).fill({ color: 0x6a6a78 });
+  g.poly([
+    cx + 1, baseY,
+    cx + 13, baseY,
+    cx + 14, feetY,
+    cx + 4, feetY,
+  ]).fill({ color: 0x40404a });
+  // Belt
+  g.rect(cx - 14, feetY - 10, 28, 3).fill({ color: 0x2a2a30 });
+  // Big square head
+  g.roundRect(cx - 9, baseY - 14, 18, 14, 3).fill({ color: 0xd0a070 });
+  g.roundRect(cx, baseY - 14, 9, 14, 3).fill({ color: 0x8a6a40 });
+  // Helmet
+  g.poly([
+    cx - 10, baseY - 14,
+    cx + 10, baseY - 14,
+    cx + 8, baseY - 19,
+    cx - 8, baseY - 19,
+  ]).fill({ color: 0x707080 });
+  // Beard
+  g.poly([
+    cx - 7, baseY - 4,
+    cx + 7, baseY - 4,
+    cx + 4, baseY + 4,
+    cx - 4, baseY + 4,
+  ]).fill({ color: 0xc04020 });
+  // Eyes
+  g.circle(cx - 3, baseY - 8, 0.9).fill({ color: 0x100808 });
+  g.circle(cx + 3, baseY - 8, 0.9).fill({ color: 0x100808 });
+}
+
+function drawBogHorror(g: Graphics, cx: number, feetY: number): void {
+  const baseY = feetY - 8;
+  // Amorphous dark blob — three overlapping ellipses for an unsettled outline.
+  g.ellipse(cx, baseY, 22, 14).fill({ color: 0x1a0820 });
+  g.ellipse(cx - 8, baseY - 4, 14, 10).fill({ color: 0x2a1030 });
+  g.ellipse(cx + 9, baseY - 6, 12, 9).fill({ color: 0x2a1030 });
+  // "Tentacles" rising from the body
+  for (let i = 0; i < 5; i++) {
+    const tx = cx - 16 + i * 8;
+    const ty = baseY - 18 - (i % 2) * 4;
+    g.ellipse(tx, ty, 3, 8).fill({ color: 0x40184a });
+    g.circle(tx, ty - 6, 2).fill({ color: 0xff40ff, alpha: 0.85 });
+  }
+  // Many glowing eyes
+  for (let i = 0; i < 6; i++) {
+    const ex = cx - 12 + Math.floor(i / 2) * 12 + (i % 2) * 4;
+    const ey = baseY - 2 - (i % 2) * 4;
+    g.circle(ex, ey, 1.2).fill({ color: 0xff80ff });
+  }
 }

@@ -28,18 +28,47 @@ export class TileRenderer {
     const g = this.g;
     g.clear();
 
-    // Two-toned checkerboard for depth perception. Slightly varying shade
-    // makes the diamond grid readable without leaning on grid lines.
+    // Deterministic per-tile pseudo-random so themes recolour the same
+    // pattern. Hash from (col, row).
+    const rand = (col: number, row: number, salt: number): number => {
+      const h = Math.sin(col * 374.0 + row * 153.7 + salt * 12.3) * 43758.5453;
+      return h - Math.floor(h);
+    };
+    // Slight per-tile shade jitter on top of the A/B checkerboard so the
+    // ground reads as natural turf instead of a chess board.
+    const shadeMix = (a: number, b: number, t: number): number => {
+      const ar = (a >> 16) & 0xff, ag = (a >> 8) & 0xff, ab = a & 0xff;
+      const br = (b >> 16) & 0xff, bg = (b >> 8) & 0xff, bb = b & 0xff;
+      const r = Math.round(ar + (br - ar) * t);
+      const gg = Math.round(ag + (bg - ag) * t);
+      const bbn = Math.round(ab + (bb - ab) * t);
+      return (r << 16) | (gg << 8) | bbn;
+    };
+
     for (let row = 0; row < GRID_H; row++) {
       for (let col = 0; col < GRID_W; col++) {
         const c = tileToIso(col, row);
-        const fill = (col + row) % 2 === 0 ? theme.tileFillA : theme.tileFillB;
+        const baseA = (col + row) % 2 === 0 ? theme.tileFillA : theme.tileFillB;
+        const jitterT = rand(col, row, 1) * 0.25;
+        const fill = shadeMix(baseA, theme.tileFillB, jitterT);
         g.poly([
           c.x, c.y - HALF_H,
           c.x + HALF_W, c.y,
           c.x, c.y + HALF_H,
           c.x - HALF_W, c.y,
         ]).fill({ color: fill });
+
+        // Three speckle dots per tile for "grass / pebble" texture. Use the
+        // theme edge colour at very low alpha — picks up the active theme.
+        for (let i = 0; i < 3; i++) {
+          const sx = rand(col, row, 7 + i) - 0.5;
+          const sy = rand(col, row, 13 + i) - 0.5;
+          const r = 0.7 + rand(col, row, 19 + i) * 0.7;
+          // Restrict to interior of diamond so speckles never poke past edges.
+          const px = c.x + sx * (HALF_W - 6);
+          const py = c.y + sy * (HALF_H - 4);
+          g.circle(px, py, r).fill({ color: theme.tileEdge, alpha: 0.18 });
+        }
       }
     }
 

@@ -3,7 +3,7 @@ import { Graphics, Container } from "pixi.js";
 import { encodeMoveIntent, encodeSkillStart, encodeCombatTarget } from "../net/protocol";
 import type { GameSocket } from "../net/Socket";
 import { useGameStore } from "../state/store";
-import { isoToTile, tileToIso, GRID_W, GRID_H, tileDepth } from "./projection";
+import { isoToTile, tileToIso, GRID_W, GRID_H, tileDepth, HALF_W, HALF_H } from "./projection";
 
 const MARKER_COLOR = 0xe04545; // GRINDSET loss-red
 const MARKER_LIFE_MS = 700;
@@ -106,14 +106,21 @@ export class Input {
         this.markers.splice(i, 1);
         continue;
       }
-      // Outer ring grows from r=8 to r=24 and fades.
-      const outerR = 8 + 16 * t;
+      // Diamond ring expanding to match the iso tile footprint, then fading.
+      const scale = 0.5 + 1.0 * t; // 0.5 → 1.5
+      const rx = (HALF_W - 6) * scale;
+      const ry = (HALF_H - 3) * scale;
       const alpha = 1 - t;
       m.graphics.clear();
-      m.graphics.circle(0, 0, outerR).stroke({ color: MARKER_COLOR, width: 2, alpha });
-      // Inner dot stays solid through ~half life, then fades with the rest.
+      m.graphics.poly([
+        0, -ry,
+        rx, 0,
+        0, ry,
+        -rx, 0,
+      ]).stroke({ color: MARKER_COLOR, width: 2, alpha });
+      // Inner pulse dot fades out faster.
       const innerAlpha = t < 0.5 ? 1 : 1 - (t - 0.5) * 2;
-      m.graphics.circle(0, 0, 4).fill({ color: MARKER_COLOR, alpha: innerAlpha });
+      m.graphics.circle(0, 0, 3).fill({ color: MARKER_COLOR, alpha: innerAlpha });
     }
   };
 
