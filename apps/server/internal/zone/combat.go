@@ -147,11 +147,13 @@ func (z *Zone) resolveCombatLocked() {
 		p.AttackCooldown = attackIntervalTicks
 
 		// Damage roll: uniform 1..maxHit. ~10% miss baseline.
+		// Weapon bonus stacks into the player's effective maxHit.
+		effectiveMax := uint16(playerMaxHit) + weaponBonus(p.EquippedWeapon)
 		var damage uint16
 		if randInRange(0, 99) < 10 {
 			damage = 0
 		} else {
-			damage = uint16(randInRange(1, playerMaxHit))
+			damage = uint16(randInRange(1, int(effectiveMax)))
 			// Crit: 10% chance to double the swing. Damage will exceed maxHit
 			// so the client treats it as a crit and renders it specially.
 			if randInRange(0, 99) < 10 {
@@ -177,7 +179,7 @@ func (z *Zone) resolveCombatLocked() {
 			AttackerID:  p.ID,
 			TargetID:    mob.ID,
 			Damage:      damage,
-			MaxHit:      uint16(playerMaxHit),
+			MaxHit:      effectiveMax,
 			TargetHP:    mob.HP,
 			TargetMaxHP: mob.MaxHP,
 		})
@@ -238,6 +240,13 @@ func (z *Zone) killMobLocked(p *Player, mob *Mob) {
 		lootSlot = addInventoryItem(&p.Inventory, lootID, 1)
 	}
 
+	// Weapon drop: separate, rarer roll.
+	weaponID, weaponChance := mobWeaponRoll(mob.DefID)
+	weaponSlot := -1
+	if weaponID != "" && randInRange(0, 99) < weaponChance {
+		weaponSlot = addInventoryItem(&p.Inventory, weaponID, 1)
+	}
+
 	// Notify attacker: SkillTick for combat XP + (optional) loot item, wallet broadcasts.
 	tickItem := ""
 	if lootSlot >= 0 {
@@ -256,6 +265,13 @@ func (z *Zone) killMobLocked(p *Player, mob *Mob) {
 	}
 	if lootSlot >= 0 {
 		invMsg := protocol.EncodeInventoryDelta([]protocol.InventorySlot{p.Inventory[lootSlot]})
+		select {
+		case p.Outbox <- invMsg:
+		default:
+		}
+	}
+	if weaponSlot >= 0 {
+		invMsg := protocol.EncodeInventoryDelta([]protocol.InventorySlot{p.Inventory[weaponSlot]})
 		select {
 		case p.Outbox <- invMsg:
 		default:
@@ -348,6 +364,23 @@ func (z *Zone) drainRespawnsLocked() {
 		}
 	}
 	z.pendingRespawn = keep
+}
+
+// mobWeaponRoll returns the weapon def + percentage chance (0–100) of a
+// rare weapon drop on kill. Independent of mobLootRoll so a single kill can
+// drop both. Empty defID = no weapon table.
+func mobWeaponRoll(defID string) (string, int) {
+	switch defID {
+	case "bog_goblin":
+		return "bronze_dagger", 5
+	case "mire_bandit":
+		return "iron_axe", 4
+	case "dwarf_thug":
+		return "steel_sword", 3
+	case "bog_horror":
+		return "steel_sword", 6
+	}
+	return "", 0
 }
 
 // mobLootRoll returns the item def + percentage chance (0–100) of dropping

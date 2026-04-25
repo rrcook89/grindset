@@ -180,6 +180,10 @@ interface GameState {
   // Last swing animation event — purely visual.
   lastSwing: { attackerId: number; targetId: number; born: number } | null;
 
+  // Currently-equipped weapon defID (client-side prediction; server is
+  // authoritative for damage rolls). null = unarmed.
+  equippedWeapon: string | null;
+
   // Session metrics (client-only stats, reset per-tab).
   sessionStart: number;
   totalKills: number;
@@ -209,6 +213,7 @@ interface GameState {
   setSkillTarget: (id: number | null) => void;
   triggerSwing: (attackerId: number, targetId: number) => void;
   recordKill: () => void;
+  setEquippedWeapon: (defID: string | null) => void;
 
   // Skills
   applySkillUpdate: (skill: Skill) => void;
@@ -269,6 +274,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   sessionStart: Date.now(),
   totalKills: 0,
   totalGrindEarned: 0n,
+  equippedWeapon: null,
 
   skills: defaultSkills(),
   levelUpFlash: null,
@@ -415,6 +421,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ lastSwing: { attackerId, targetId, born: Date.now() } }),
 
   recordKill: () => set((s) => ({ totalKills: s.totalKills + 1 })),
+
+  setEquippedWeapon: (defID) => set({ equippedWeapon: defID }),
 
   // ── Skills ──────────────────────────────────────────────────────────────────
 

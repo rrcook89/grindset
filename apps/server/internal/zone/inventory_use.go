@@ -37,6 +37,15 @@ func (z *Zone) UseItem(pid uint32, slot uint8) {
 	if stack.ItemDefID == "" || stack.Qty == 0 {
 		return
 	}
+	// Weapons get equipped instead of consumed. Release the lock and route
+	// through EquipItem since it locks again.
+	if isWeapon(stack.ItemDefID) {
+		z.mu.Unlock()
+		z.EquipItem(pid, slot)
+		z.mu.Lock()
+		return
+	}
+
 	heal := foodHeal(stack.ItemDefID)
 	if heal == 0 {
 		return // item is not edible; could extend with potions, etc.

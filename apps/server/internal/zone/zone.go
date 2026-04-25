@@ -83,6 +83,9 @@ type Player struct {
 	// values are remaining ticks.
 	NextSwingMul     uint16
 	AbilityCooldowns map[uint8]int
+
+	// Equipment. Empty = unarmed. Weapon adds to playerMaxHit.
+	EquippedWeapon string
 }
 
 type intent struct {

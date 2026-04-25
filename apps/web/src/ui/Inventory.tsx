@@ -3,10 +3,24 @@ import { useGameStore } from "../state/store";
 import type { InventoryItem } from "../net/types";
 import { getActiveSocket } from "../net/Socket";
 import { encodeInventoryUse } from "../net/protocol";
+import { isWeapon, weaponBonus } from "../net/itemDefs";
 
-function useSlot(slotIndex: number): void {
+function useSlot(slotIndex: number, item?: InventoryItem): void {
   const socket = getActiveSocket();
   socket?.sendRaw(encodeInventoryUse(slotIndex, 0, 0));
+  // Optimistic equipped-weapon prediction: server is authoritative for the
+  // damage roll, but the UI label tracks the most recent intent.
+  if (item) {
+    // The item.name is "Bronze dagger" etc.; we need the defID. Map back
+    // from the small weapons table.
+    const inferredDefId = item.name.toLowerCase().replace(/\s+/g, "_");
+    if (isWeapon(inferredDefId)) {
+      const cur = useGameStore.getState().equippedWeapon;
+      // Toggle-swap: if you click the same item, server returns the previous
+      // weapon to the slot, so we swap. Otherwise it's the new equipped.
+      useGameStore.getState().setEquippedWeapon(cur === inferredDefId ? null : inferredDefId);
+    }
+  }
 }
 
 const TOTAL_SLOTS = 28;
@@ -55,7 +69,7 @@ function ItemSlot({
           draggable
           onDragStart={() => onDragStart(item.slotIndex)}
           onContextMenu={(e) => onContextMenu(e, item)}
-          onDoubleClick={() => useSlot(item.slotIndex)}
+          onDoubleClick={() => useSlot(item.slotIndex, item)}
           className="flex h-10 w-10 cursor-grab items-center justify-center rounded"
           style={{ backgroundColor: item.color }}
           title={item.name}
@@ -73,11 +87,16 @@ function ItemSlot({
 
 export function Inventory() {
   const inventory = useGameStore((s) => s.inventory);
+  const equippedWeapon = useGameStore((s) => s.equippedWeapon);
   const moveSlot = useGameStore((s) => s.moveInventorySlot);
   const dragSlot = useRef<number | null>(null);
   const [ctxMenu, setCtxMenu] = useState<ContextMenu>(null);
 
   const itemBySlot = new Map(inventory.map((i) => [i.slotIndex, i]));
+  const weaponLabel = equippedWeapon
+    ? equippedWeapon.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+    : "unarmed";
+  const weaponBonusValue = weaponBonus(equippedWeapon);
 
   function handleDragStart(slotIndex: number) {
     dragSlot.current = slotIndex;
@@ -102,6 +121,15 @@ export function Inventory() {
       className="relative select-none rounded border border-ingot-gold/30 bg-obsidian/90 p-2"
       onClick={() => setCtxMenu(null)}
     >
+      <div className="mb-1 flex items-center justify-between border-b border-ingot-gold/15 pb-1 text-[10px] uppercase tracking-widest">
+        <span className="text-parchment-grey/60">Wielding</span>
+        <span className={equippedWeapon ? "text-ingot-gold" : "text-parchment-grey/40"}>
+          {weaponLabel}
+          {weaponBonusValue > 0 && (
+            <span className="ml-1 font-mono text-loss-red">+{weaponBonusValue}</span>
+          )}
+        </span>
+      </div>
       <div
         className="grid gap-1"
         style={{ gridTemplateColumns: `repeat(${COLS}, 3rem)`, gridTemplateRows: `repeat(${ROWS}, 3rem)` }}
@@ -131,7 +159,7 @@ export function Inventory() {
                 if (action === "Deposit") {
                   useGameStore.getState().depositItem(ctxMenu.item.slotIndex);
                 } else if (action === "Use") {
-                  useSlot(ctxMenu.item.slotIndex);
+                  useSlot(ctxMenu.item.slotIndex, ctxMenu.item);
                 }
                 setCtxMenu(null);
               }}

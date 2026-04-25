@@ -46,3 +46,20 @@ const TABLE: Record<string, ItemDisplay> = {
 export function itemDisplay(defId: string): ItemDisplay {
   return TABLE[defId] ?? { name: defId, color: "#666666" };
 }
+
+const WEAPONS = new Set(["bronze_dagger", "iron_axe", "steel_sword"]);
+
+/** True if this defID is a weapon (client-side mirror of server weaponBonus). */
+export function isWeapon(defId: string): boolean {
+  return WEAPONS.has(defId);
+}
+
+/** Bonus maxHit added by equipping this weapon (server-authoritative copy). */
+export function weaponBonus(defId: string | null): number {
+  switch (defId) {
+    case "bronze_dagger": return 2;
+    case "iron_axe": return 4;
+    case "steel_sword": return 6;
+    default: return 0;
+  }
+}
