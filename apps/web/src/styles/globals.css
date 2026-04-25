@@ -32,3 +32,20 @@ button {
   all: unset;
   cursor: pointer;
 }
+
+/* Day/night cycle: 180s loop through dawn / day / dusk / night tints.
+   Soft-light blend keeps tile colours readable; alpha kept low so the
+   atmosphere shifts but combat clarity isn't compromised. */
+@keyframes grindset-daynight {
+  0%   { background-color: rgba(255, 180, 100, 0.16); } /* dawn — warm pink */
+  20%  { background-color: rgba(255, 240, 180, 0.06); } /* morning */
+  35%  { background-color: rgba(255, 255, 200, 0.0);  } /* high noon — clear */
+  55%  { background-color: rgba(255, 200, 120, 0.10); } /* afternoon */
+  70%  { background-color: rgba(255, 120, 80, 0.18);  } /* dusk — orange */
+  85%  { background-color: rgba(80, 60, 140, 0.22);   } /* twilight — purple */
+  100% { background-color: rgba(255, 180, 100, 0.16); } /* dawn again */
+}
+
+.grindset-daynight {
+  animation: grindset-daynight 180s linear infinite;
+}

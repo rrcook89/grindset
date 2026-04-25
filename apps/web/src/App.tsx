@@ -45,6 +45,14 @@ export function App() {
   return (
     <div className="relative h-full w-full overflow-hidden bg-obsidian">
       <canvas ref={canvasRef} className="block h-full w-full" />
+      {/* Day/night cycle overlay — 3-minute loop through dawn / day /
+          dusk / night tints. Low alpha (8%) so it's atmospheric, not
+          disruptive. mix-blend-mode: soft-light keeps tile colours
+          readable. Pure CSS @keyframes — no JS, no perf cost. */}
+      <div
+        className="pointer-events-none absolute inset-0 grindset-daynight"
+        style={{ mixBlendMode: "soft-light" }}
+      />
       {/* Vignette overlay — radial gradient that darkens screen corners,
           giving focus to the centre where the player sits. Pure CSS, sits
           above canvas but below interactive UI via pointer-events:none. */}
