@@ -220,7 +220,7 @@ describe("readOpcode", () => {
     [OP.MOVE_INTENT, "MOVE_INTENT"],
     [OP.POSITION_DELTA, "POSITION_DELTA"],
     [OP.ERROR, "ERROR"],
-  ])("returns %i for %s frame", (opcode) => {
+  ])("returns %i for %s frame", (opcode, _name) => {
     const buf = new ArrayBuffer(4);
     new DataView(buf).setUint8(0, opcode);
     expect(readOpcode(buf)).toBe(opcode);

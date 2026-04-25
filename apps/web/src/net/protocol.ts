@@ -78,7 +78,7 @@ function decodeString(buf: ArrayBuffer, byteOffset: number, byteLength?: number)
 /** 0x00 Hello — sent by client after WS open (dev mode skips auth) */
 export function encodeHello(devUser: string): Uint8Array {
   const nameBytes = encodeString(devUser);
-  const { buf, view, bytes } = alloc(nameBytes.byteLength);
+  const { view, bytes } = alloc(nameBytes.byteLength);
   writeHeader(view, OP.HELLO, nameBytes.byteLength);
   bytes.set(nameBytes, 4);
   return bytes;
@@ -140,7 +140,7 @@ export function encodeChatSend(channel: number, text: string): Uint8Array {
   const textBytes = encodeString(text);
   // channel:u8, text_len:u16, text_utf8
   const payloadLen = 1 + 2 + textBytes.byteLength;
-  const { buf, view, bytes } = alloc(payloadLen);
+  const { view, bytes } = alloc(payloadLen);
   writeHeader(view, OP.CHAT_SEND, payloadLen);
   view.setUint8(4, channel);
   view.setUint16(5, textBytes.byteLength, true);

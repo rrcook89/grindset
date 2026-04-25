@@ -119,6 +119,10 @@ export class Game {
   destroy(): void {
     this.input.destroy();
     this.unsubscribe();
+    // Remove world and renderer containers before destroying app
+    this.worldContainer.removeChild(this.tileRenderer.container);
+    this.worldContainer.removeChild(this.nodeRenderer.container);
+    this.worldContainer.removeChild(this.entityRenderer.container);
     this.app.destroy(false);
   }
 }
